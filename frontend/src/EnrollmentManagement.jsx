@@ -37,6 +37,14 @@ export default function EnrollmentManagement({ user, onBack }) {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [selectedEnrollment, setSelectedEnrollment] = useState(null);
+  const [transferForm, setTransferForm] = useState({
+    newClassId: "",
+    newSectionId: "",
+    newRollNumber: "",
+    transferDate: new Date().toISOString().slice(0, 10),
+    remarks: "",
+  });
 
   const [filters, setFilters] = useState({
     academicYearId: "",
@@ -140,6 +148,22 @@ export default function EnrollmentManagement({ user, onBack }) {
     });
   }, [sections, form.classId]);
 
+    const transferSections = useMemo(() => {
+        if (!transferForm.newClassId) return [];
+
+        return sections.filter((section) => {
+            const sectionClassId =
+            typeof section.classId === "object"
+                ? section.classId?._id
+                : section.classId;
+
+            return (
+            sectionClassId === transferForm.newClassId &&
+            section.status === "Active"
+            );
+        });
+    }, [sections, transferForm.newClassId]);
+
   const visibleEnrollments = useMemo(() => {
     const search = filters.search.trim().toLowerCase();
 
@@ -223,6 +247,96 @@ export default function EnrollmentManagement({ user, onBack }) {
       setSaving(false);
     }
   }
+
+  
+function startTransfer(enrollment) {
+  setError("");
+  setSuccess("");
+  setSelectedEnrollment(enrollment);
+
+  const currentClassId =
+    typeof enrollment.classId === "object"
+      ? enrollment.classId?._id
+      : enrollment.classId;
+
+  setTransferForm({
+    newClassId: currentClassId || "",
+    newSectionId: "",
+    newRollNumber: "",
+    transferDate: new Date().toISOString().slice(0, 10),
+    remarks: "",
+  });
+}
+
+function updateTransferForm(field, value) {
+  setTransferForm((current) => ({
+    ...current,
+    [field]: value,
+    ...(field === "newClassId" ? { newSectionId: "" } : {}),
+  }));
+}
+
+async function submitTransfer(event) {
+  event.preventDefault();
+  setError("");
+  setSuccess("");
+
+  if (!selectedEnrollment) {
+    setError("Please select an enrollment to transfer.");
+    return;
+  }
+
+  const newRollNumber = Number(transferForm.newRollNumber);
+
+  if (!Number.isInteger(newRollNumber) || newRollNumber < 1) {
+    setError("The new roll number must be a whole number greater than zero.");
+    return;
+  }
+
+  const currentSectionId =
+    typeof selectedEnrollment.sectionId === "object"
+      ? selectedEnrollment.sectionId?._id
+      : selectedEnrollment.sectionId;
+
+  if (
+    transferForm.newClassId === selectedEnrollment.classId?._id &&
+    transferForm.newSectionId === currentSectionId
+  ) {
+    setError("Choose a different class or section for the transfer.");
+    return;
+  }
+
+  const confirmed = window.confirm(
+    `Transfer ${studentName(selectedEnrollment.studentId)} to the selected class and section? The current enrollment will be preserved as transfer history.`
+  );
+
+  if (!confirmed) return;
+
+  setSaving(true);
+
+  try {
+    await api.patch(
+      `/enrollments/${selectedEnrollment._id}/transfer`,
+      {
+        newClassId: transferForm.newClassId,
+        newSectionId: transferForm.newSectionId,
+        newRollNumber,
+        transferDate: transferForm.transferDate,
+        remarks: transferForm.remarks.trim(),
+      }
+    );
+
+    setSuccess("Student transferred successfully. Previous enrollment history has been preserved.");
+    setSelectedEnrollment(null);
+
+    await loadEnrollments();
+  } catch (err) {
+    setError(getErrorMessage(err));
+  } finally {
+    setSaving(false);
+  }
+}
+
 
   function studentName(student) {
     if (!student) return "—";
@@ -436,6 +550,162 @@ export default function EnrollmentManagement({ user, onBack }) {
         </section>
       )}
 
+      
+        {selectedEnrollment && canManage && (
+        <section className="card shadow-sm mb-4">
+            <div className="card-header fw-semibold">
+            Transfer Student
+            </div>
+
+            <div className="card-body">
+            <p>
+                <strong>Student:</strong>{" "}
+                {studentName(selectedEnrollment.studentId)}
+                {" · "}
+                <strong>Current class:</strong>{" "}
+                {selectedEnrollment.classId?.name || "—"}
+                {" · "}
+                <strong>Section:</strong>{" "}
+                {selectedEnrollment.sectionId?.name || "—"}
+                {" · "}
+                <strong>Roll number:</strong>{" "}
+                {selectedEnrollment.rollNumber}
+            </p>
+
+            <p className="text-secondary small">
+                Academic year: {selectedEnrollment.academicYearId?.name || "—"}
+            </p>
+
+            <form onSubmit={submitTransfer}>
+                <div className="row g-3">
+                <div className="col-md-4">
+                    <label className="form-label" htmlFor="transferClass">
+                    Destination Class *
+                    </label>
+
+                    <select
+                    id="transferClass"
+                    className="form-select"
+                    value={transferForm.newClassId}
+                    onChange={(event) =>
+                        updateTransferForm("newClassId", event.target.value)
+                    }
+                    required
+                    >
+                    <option value="">Select class</option>
+                    {classes
+                        .filter((item) => item.status === "Active")
+                        .map((item) => (
+                        <option key={item._id} value={item._id}>
+                            {item.name}
+                        </option>
+                        ))}
+                    </select>
+                </div>
+
+                <div className="col-md-4">
+                    <label className="form-label" htmlFor="transferSection">
+                    Destination Section *
+                    </label>
+
+                    <select
+                    id="transferSection"
+                    className="form-select"
+                    value={transferForm.newSectionId}
+                    onChange={(event) =>
+                        updateTransferForm("newSectionId", event.target.value)
+                    }
+                    disabled={!transferForm.newClassId}
+                    required
+                    >
+                    <option value="">Select section</option>
+                    {transferSections.map((section) => (
+                        <option key={section._id} value={section._id}>
+                        {section.name}
+                        </option>
+                    ))}
+                    </select>
+                </div>
+
+                <div className="col-md-4">
+                    <label className="form-label" htmlFor="transferRoll">
+                    New Roll Number *
+                    </label>
+
+                    <input
+                    id="transferRoll"
+                    type="number"
+                    min="1"
+                    step="1"
+                    className="form-control"
+                    value={transferForm.newRollNumber}
+                    onChange={(event) =>
+                        updateTransferForm("newRollNumber", event.target.value)
+                    }
+                    required
+                    />
+                </div>
+
+                <div className="col-md-4">
+                    <label className="form-label" htmlFor="transferDate">
+                    Transfer Date *
+                    </label>
+
+                    <input
+                    id="transferDate"
+                    type="date"
+                    className="form-control"
+                    value={transferForm.transferDate}
+                    onChange={(event) =>
+                        updateTransferForm("transferDate", event.target.value)
+                    }
+                    required
+                    />
+                </div>
+
+                <div className="col-md-8">
+                    <label className="form-label" htmlFor="transferRemarks">
+                    Remarks
+                    </label>
+
+                    <input
+                    id="transferRemarks"
+                    type="text"
+                    maxLength="500"
+                    className="form-control"
+                    value={transferForm.remarks}
+                    onChange={(event) =>
+                        updateTransferForm("remarks", event.target.value)
+                    }
+                    placeholder="Reason for transfer (optional)"
+                    />
+                </div>
+                </div>
+
+                <div className="mt-4 d-flex gap-2">
+                <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={saving}
+                >
+                    {saving ? "Transferring..." : "Confirm Transfer"}
+                </button>
+
+                <button
+                    type="button"
+                    className="btn btn-outline-secondary"
+                    disabled={saving}
+                    onClick={() => setSelectedEnrollment(null)}
+                >
+                    Cancel
+                </button>
+                </div>
+            </form>
+            </div>
+        </section>
+        )}
+
+
       <section className="card shadow-sm">
         <div className="card-header fw-semibold">Enrollment Records</div>
         <div className="card-body">
@@ -554,6 +824,7 @@ export default function EnrollmentManagement({ user, onBack }) {
                   <th>Roll No.</th>
                   <th>Enrollment Date</th>
                   <th>Status</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -583,12 +854,24 @@ export default function EnrollmentManagement({ user, onBack }) {
                         {item.status}
                       </span>
                     </td>
+                    <td>
+                    {canManage && item.status === "Active" && (
+                        <button
+                        type="button"
+                        className="btn btn-sm btn-outline-primary"
+                        onClick={() => startTransfer(item)}
+                        disabled={saving}
+                        >
+                        Transfer
+                        </button>
+                    )}
+                    </td>
                   </tr>
                 ))}
 
                 {visibleEnrollments.length === 0 && (
                   <tr>
-                    <td colSpan="8" className="text-center text-secondary py-4">
+                    <td colSpan="9" className="text-center text-secondary py-4">
                       No enrollment records found.
                     </td>
                   </tr>
