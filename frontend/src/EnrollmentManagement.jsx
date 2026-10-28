@@ -338,6 +338,51 @@ async function submitTransfer(event) {
 }
 
 
+async function updateEnrollmentStatus(enrollment, newStatus) {
+  const studentName = [
+    enrollment.studentId?.firstName,
+    enrollment.studentId?.lastName,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const action = newStatus === "Completed" ? "complete" : "cancel";
+
+  const confirmed = window.confirm(
+    `Are you sure you want to ${action} the enrollment for ${
+      studentName || "this student"
+    }? This action cannot be reversed through the current workflow.`
+  );
+
+  if (!confirmed) return;
+
+  try {
+    setSaving(true);
+    setError("");
+    setSuccess("");
+
+    await api.patch(`/enrollments/${enrollment._id}/status`, {
+      status: newStatus,
+    });
+
+    setSuccess(
+      `Enrollment successfully marked as ${newStatus.toLowerCase()}.`
+    );
+
+    if (selectedEnrollment?._id === enrollment._id) {
+      setSelectedEnrollment(null);
+    }
+
+    await loadEnrollments();
+  } catch (err) {
+    setError(getErrorMessage(err));
+  } finally {
+    setSaving(false);
+  }
+}
+
+
+
   function studentName(student) {
     if (!student) return "—";
     return `${student.firstName || ""} ${student.lastName || ""}`.trim() || "—";
@@ -865,6 +910,29 @@ async function submitTransfer(event) {
                         Transfer
                         </button>
                     )}
+                    
+                    {canManage && item.status === "Active" && (
+                      <>
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-success me-2 mb-1"
+                          onClick={() => updateEnrollmentStatus(item, "Completed")}
+                          disabled={saving}
+                        >
+                          Complete
+                        </button>
+
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-danger me-2 mb-1"
+                          onClick={() => updateEnrollmentStatus(item, "Cancelled")}
+                          disabled={saving}
+                        >
+                          Cancel Enrollment
+                        </button>
+                      </>
+                    )}
+
                     </td>
                   </tr>
                 ))}
