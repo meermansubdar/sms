@@ -6,6 +6,7 @@ import AcademicYearManagement from "../AcademicYearManagement";
 import ClassManagement from "../ClassManagement";
 import SectionManagement from "../SectionManagement";
 import EnrollmentManagement from "../EnrollmentManagement";
+import AttendanceManagement from "../AttendanceManagement";
 
 const STUDENT_MODULE_ROLES = [
   "Administrator",
@@ -58,6 +59,18 @@ const ENROLLMENT_VIEW_ROLES = [
 ];
 
 const ENROLLMENT_MANAGE_ROLES = [
+  "Administrator",
+  "Principal",
+];
+
+const ATTENDANCE_VIEW_ROLES = [
+  "Administrator",
+  "Principal",
+  "Teacher",
+  "Accountant",
+];
+
+const ATTENDANCE_MANAGE_ROLES = [
   "Administrator",
   "Principal",
 ];
@@ -151,12 +164,19 @@ export default function AuthGate() {
   const canManageEnrollments =
   ENROLLMENT_MANAGE_ROLES.includes(user.role);
 
+  const canViewAttendance =
+  ATTENDANCE_VIEW_ROLES.includes(user.role);
+  
+  const canManageAttendance =
+  ATTENDANCE_MANAGE_ROLES.includes(user.role);
+
   const canViewAnyModule =
     canViewStudents ||
     canViewAcademicYears ||
     canViewClasses ||
     canViewSections ||
-    canViewEnrollments;
+    canViewEnrollments ||
+    canViewAttendance;
 
   return (
     <>
@@ -271,6 +291,22 @@ export default function AuthGate() {
                     Enrollment Management
                 </button>
                 )}
+                {canViewAttendance && (
+                <button
+                    type="button"
+                    className={`btn btn-sm ${
+                    activeModule === "attendance"
+                        ? "btn-primary"
+                        : "btn-outline-primary"
+                    }`}
+                    onClick={() => openModule("attendance")}
+                    aria-current={
+                    activeModule === "attendance" ? "page" : undefined
+                    }
+                >
+                    Attendance Management
+                </button>
+                )}
             </div>
           </div>
         </div>
@@ -307,6 +343,13 @@ export default function AuthGate() {
             onBack={() => openModule("students")}
         />
        )}
+
+       {activeModule === "attendance" && canViewAttendance && (
+        <AttendanceManagement
+            user={user}
+            onBack={() => openModule("students")}
+        />
+        )}
 
       {!canViewAnyModule && (
         <main className="container py-5">
