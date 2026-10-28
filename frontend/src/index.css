@@ -1,0 +1,161 @@
+
+:root {
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  color: #243247;
+  background: #f5f7fb;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: #f5f7fb;
+}
+
+a {
+  text-decoration: none;
+}
+
+.app-shell {
+  min-height: 100vh;
+}
+
+.sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: 250px;
+  background: #182b49;
+  color: #fff;
+  z-index: 1000;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid rgb(255 255 255 / 10%);
+}
+
+.brand-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: #fff;
+  color: #182b49;
+  font-weight: 800;
+  font-size: 22px;
+}
+
+.sidebar .nav-link {
+  color: #c4cede;
+  padding: 12px 14px;
+  border-radius: 9px;
+}
+
+.sidebar .nav-link:hover,
+.sidebar .nav-link.active {
+  color: #fff;
+  background: #2c4264;
+}
+
+.sidebar-footer {
+  border-top: 1px solid rgb(255 255 255 / 10%);
+}
+
+.main-content {
+  margin-left: 250px;
+  min-height: 100vh;
+}
+
+.topbar {
+  min-height: 86px;
+  padding: 18px 28px;
+  background: #fff;
+  border-bottom: 1px solid #e6eaf1;
+}
+
+.welcome-panel {
+  overflow: hidden;
+  border-radius: 18px;
+  color: #fff;
+  background: linear-gradient(120deg, #234b83, #3978bd);
+}
+
+.welcome-panel .small {
+  letter-spacing: 1.5px;
+}
+
+.welcome-icon {
+  font-size: 100px;
+  opacity: 0.8;
+}
+
+.module-card {
+  border: 1px solid #e6eaf1;
+  border-radius: 14px;
+  box-shadow: 0 4px 14px rgb(27 44 76 / 3%);
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+
+.module-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgb(27 44 76 / 8%);
+}
+
+.module-icon {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: #eaf1fb;
+  color: #245a9e;
+  font-size: 22px;
+}
+
+@media (max-width: 767.98px) {
+  .sidebar {
+    position: static;
+    width: 100%;
+  }
+
+  .sidebar .nav {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding-bottom: 14px;
+  }
+
+  .sidebar-footer {
+    display: none;
+  }
+
+  .main-content {
+    margin-left: 0;
+  }
+
+  .topbar {
+    padding: 16px;
+  }
+
+  .welcome-icon {
+    font-size: 64px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
