@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import api from "../services/api";
 import Login from "./Login";
+import LandingPage from "../LandingPage";
 import StudentManagement from "../StudentManagement";
 import AcademicYearManagement from "../AcademicYearManagement";
 import ClassManagement from "../ClassManagement";
 import SectionManagement from "../SectionManagement";
 import EnrollmentManagement from "../EnrollmentManagement";
 import AttendanceManagement from "../AttendanceManagement";
+import UserManagement from "../UserManagement";
 
 const STUDENT_MODULE_ROLES = [
   "Administrator",
@@ -75,10 +77,16 @@ const ATTENDANCE_MANAGE_ROLES = [
   "Principal",
 ];
 
+const USER_MANAGEMENT_ROLES = [
+  "Administrator",
+  "Principal",
+];
+
 export default function AuthGate() {
   const [user, setUser] = useState(null);
   const [checking, setChecking] = useState(true);
   const [activeModule, setActiveModule] = useState("students");
+  const [showLogin, setShowLogin] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -139,7 +147,19 @@ export default function AuthGate() {
   }
 
   if (!user) {
-    return <Login onLogin={handleLogin} />;
+    if (showLogin) {
+      return (
+        <Login
+          onLogin={handleLogin}
+        />
+      );
+    }
+
+    return (
+      <LandingPage
+        onLoginClick={() => setShowLogin(true)}
+      />
+    );
   }
 
   const canViewStudents = STUDENT_MODULE_ROLES.includes(user.role);
@@ -169,6 +189,9 @@ export default function AuthGate() {
   
   const canManageAttendance =
   ATTENDANCE_MANAGE_ROLES.includes(user.role);
+
+  const canViewUserManagement =
+  USER_MANAGEMENT_ROLES.includes(user.role);
 
   const canViewAnyModule =
     canViewStudents ||
@@ -307,6 +330,20 @@ export default function AuthGate() {
                     Attendance Management
                 </button>
                 )}
+                {canViewUserManagement && (
+                <button
+                  type="button"
+                  className={`btn btn-sm ${
+                    activeModule === "users"
+                      ? "btn-primary"
+                      : "btn-outline-primary"
+                  }`}
+                  onClick={() => openModule("users")}
+                  aria-current={activeModule === "users" ? "page" : undefined}
+                >
+                  User Management
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -348,6 +385,13 @@ export default function AuthGate() {
         <AttendanceManagement
             user={user}
             onBack={() => openModule("students")}
+        />
+        )}
+
+        {activeModule === "users" && canViewUserManagement && (
+        <UserManagement
+          user={user}
+          onBack={() => openModule("students")}
         />
         )}
 

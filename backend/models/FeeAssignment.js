@@ -165,6 +165,16 @@ const feeAssignmentSchema = new mongoose.Schema(
       required: true,
     },
 
+    paymentLock: {
+        token: {
+            type: String,
+            default: null,
+        },
+        expiresAt: {
+            type: Date,
+            default: null,
+        },
+    },
     remarks: {
       type: String,
       trim: true,

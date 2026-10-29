@@ -159,3 +159,63 @@ a {
     scroll-behavior: auto !important;
   }
 }
+
+
+/* Public landing page */
+.landing-page {
+  min-height: 100vh;
+  background: #fff;
+}
+
+.landing-hero {
+  background:
+    radial-gradient(circle at 85% 15%, #e4efff 0, transparent 32%),
+    linear-gradient(135deg, #f5f8ff, #fff 70%);
+}
+
+.landing-heading-accent {
+  display: block;
+  color: #245a9e;
+}
+
+.landing-preview {
+  padding: 28px;
+  border: 1px solid #e3eaf5;
+  border-radius: 20px;
+  background: #fff;
+}
+
+.landing-preview-icon,
+.landing-feature-icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: #eaf1fb;
+  color: #245a9e;
+  font-size: 23px;
+}
+
+.landing-preview-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px 0;
+  border-bottom: 1px solid #edf0f5;
+}
+
+.landing-preview-row:last-of-type {
+  border-bottom: none;
+}
+
+.landing-feature-card {
+  border: 1px solid #e6eaf1;
+  border-radius: 14px;
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+
+.landing-feature-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 22px rgb(27 44 76 / 8%);
+}
