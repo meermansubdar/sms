@@ -13,6 +13,8 @@ import classRoutes from "./routes/classRoutes.js";
 import sectionRoutes from "./routes/sectionRoutes.js";
 import enrollmentRoutes from "./routes/enrollmentRoutes.js";
 import attendanceRoutes from "./routes/attendanceRoutes.js";
+import feeStructureRoutes from "./routes/feeStructureRoutes.js";
+import feeAssignmentRoutes from "./routes/feeAssignmentRoutes.js";
 
 dotenv.config();
 
@@ -77,6 +79,8 @@ app.use("/api/classes", classRoutes);
 app.use("/api/sections", sectionRoutes);
 app.use("/api/enrollments", enrollmentRoutes);
 app.use("/api/attendance", attendanceRoutes);
+app.use("/api/fee-structures", feeStructureRoutes);
+app.use("/api/fee-assignments", feeAssignmentRoutes);
 
 // Unknown API routes
 app.use("/api", (req, res) => {
