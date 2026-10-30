@@ -1,5 +1,5 @@
-
 import { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "./services/api";
 
 const API_URL =
@@ -19,6 +19,7 @@ const emptyForm = {
 };
 
 export default function App() {
+  const navigate = useNavigate();
   const [students, setStudents] = useState([]);
   const [academicYears, setAcademicYears] = useState([]);
   const [classes, setClasses] = useState([]);
@@ -715,6 +716,13 @@ export default function App() {
                         </td>
                         <td>
                           <div className="d-flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-outline-info"
+                              onClick={() => navigate(`/students/${student._id}`)}
+                            >
+                              View Profile
+                            </button>
                             <button
                               type="button"
                               className="btn btn-sm btn-outline-primary"

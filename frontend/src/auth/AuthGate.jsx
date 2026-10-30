@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import api from "../services/api";
 import Login from "./Login";
 import LandingPage from "../LandingPage";
@@ -9,6 +10,7 @@ import SectionManagement from "../SectionManagement";
 import EnrollmentManagement from "../EnrollmentManagement";
 import AttendanceManagement from "../AttendanceManagement";
 import UserManagement from "../UserManagement";
+import StudentProfile from "../StudentProfile";
 
 const STUDENT_MODULE_ROLES = [
   "Administrator",
@@ -83,10 +85,13 @@ const USER_MANAGEMENT_ROLES = [
 ];
 
 export default function AuthGate() {
+  const location = useLocation();
+  const isStudentProfilePage = location.pathname.startsWith("/students/");
   const [user, setUser] = useState(null);
   const [checking, setChecking] = useState(true);
   const [activeModule, setActiveModule] = useState("students");
   const [showLogin, setShowLogin] = useState(false);
+  
 
   useEffect(() => {
     let active = true;
@@ -163,6 +168,19 @@ export default function AuthGate() {
   }
 
   const canViewStudents = STUDENT_MODULE_ROLES.includes(user.role);
+  if (isStudentProfilePage) {
+  if (!STUDENT_MODULE_ROLES.includes(user.role)) {
+    return (
+      <div className="container py-5">
+        <div className="alert alert-danger">
+          You do not have permission to view student profiles.
+        </div>
+      </div>
+    );
+  }
+
+  return <StudentProfile />;
+}
 
   const canViewAcademicYears =
     ACADEMIC_YEAR_VIEW_ROLES.includes(user.role);
