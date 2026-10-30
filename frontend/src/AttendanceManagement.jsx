@@ -26,6 +26,13 @@ export default function AttendanceManagement({ user, onBack }) {
   const [reportLoading, setReportLoading] = useState(false);
   const [reportError, setReportError] = useState("");
 
+  const [historyStudentId, setHistoryStudentId] = useState("");
+  const [historyFromDate, setHistoryFromDate] = useState("");
+  const [historyToDate, setHistoryToDate] = useState("");
+  const [historyRecords, setHistoryRecords] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState("");
+
   const canManage = ["Administrator", "Principal"].includes(user?.role);
 
   useEffect(() => {
@@ -129,6 +136,7 @@ export default function AttendanceManagement({ user, onBack }) {
       }));
 
       setStudents(studentRows);
+      console.log("Students available for history dropdown:", studentRows);
 
       const initialAttendance = {};
       const initialRemarks = {};
@@ -294,6 +302,75 @@ export default function AttendanceManagement({ user, onBack }) {
     }
   }
 
+  async function loadStudentHistory() {
+    if (!historyStudentId) {
+      setHistoryError("Please select a student.");
+      return;
+    }
+
+    if (!historyFromDate || !historyToDate) {
+      setHistoryError("Please select both From Date and To Date.");
+      return;
+    }
+
+    if (historyFromDate > historyToDate) {
+      setHistoryError("From Date cannot be after To Date.");
+      return;
+    }
+
+    setHistoryLoading(true);
+    setHistoryError("");
+    setHistoryRecords([]);
+
+    try {
+      const response = await api.get("/attendance", {
+        params: {
+          studentId: historyStudentId,
+          fromDate: historyFromDate,
+          toDate: historyToDate,
+          page: 1,
+          limit: 100,
+        },
+      });
+
+      setHistoryRecords(response.data.data || []);
+    } catch (err) {
+      setHistoryError(
+        err.response?.data?.message ||
+          "Unable to load student attendance history."
+      );
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
+
+  const historySummary = {
+    total: historyRecords.length,
+    present: historyRecords.filter(
+      (record) => record.status === "Present"
+    ).length,
+    absent: historyRecords.filter(
+      (record) => record.status === "Absent"
+    ).length,
+    late: historyRecords.filter(
+      (record) => record.status === "Late"
+    ).length,
+    excused: historyRecords.filter(
+      (record) => record.status === "Excused"
+    ).length,
+  };
+
+  historySummary.percentage =
+    historySummary.total > 0
+      ? Number(
+          (
+            ((historySummary.present + historySummary.late) /
+              historySummary.total) *
+            100
+          ).toFixed(2)
+        )
+      : 0;
+
   useEffect(() => {
     if (students.length) {
       loadExistingAttendance();
@@ -391,14 +468,15 @@ export default function AttendanceManagement({ user, onBack }) {
               />
             </div>
 
-            <div className="col-12 col-lg-2">
+            <div className="d-flex flex-wrap align-items-center gap-2">
               <button
-                className="btn btn-primary w-100"
+                className="btn btn-primary"
                 onClick={loadStudents}
                 disabled={loading}
               >
                 {loading ? "Loading..." : "Load Students"}
               </button>
+
               <button
                 type="button"
                 className="btn btn-success"
@@ -563,6 +641,170 @@ export default function AttendanceManagement({ user, onBack }) {
           </div>
         </div>
       )}
+      {/* Student Attendance History */}
+      <div className="card mt-4">
+        <div className="card-header">
+          <h5 className="mb-0">Student Attendance History</h5>
+        </div>
+
+        <div className="card-body">
+          <div className="row g-3">
+            <div className="col-md-3">
+              <label className="form-label">Select Student</label>
+              <select
+                className="form-select"
+                value={historyStudentId}
+                onChange={(e) => setHistoryStudentId(e.target.value)}
+              >
+                <option value="">Select Student</option>
+                {students.map((student) => (
+                  <option key={student.studentId} value={student.studentId}>
+                    {student.studentName} (Roll No: {student.rollNumber})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="col-md-3">
+              <label className="form-label">From Date</label>
+              <input
+                type="date"
+                className="form-control"
+                value={historyFromDate}
+                onChange={(e) => setHistoryFromDate(e.target.value)}
+              />
+            </div>
+
+            <div className="col-md-3">
+              <label className="form-label">To Date</label>
+              <input
+                type="date"
+                className="form-control"
+                value={historyToDate}
+                onChange={(e) => setHistoryToDate(e.target.value)}
+              />
+            </div>
+
+            <div className="col-md-3 d-flex align-items-end">
+              <button
+                type="button"
+                className="btn btn-primary w-100"
+                onClick={loadStudentHistory}
+                disabled={historyLoading}
+              >
+                {historyLoading ? "Loading..." : "View History"}
+              </button>
+            </div>
+          </div>
+
+          {historyError && (
+            <div className="alert alert-danger mt-3">
+              {historyError}
+            </div>
+          )}
+        </div>
+        {historyRecords.length > 0 && (
+          <div className="row g-3 mt-3 mb-3">
+            <div className="col-md-4">
+              <div className="card bg-light">
+                <div className="card-body">
+                  <h6>Total Records</h6>
+                  <h3>{historySummary.total}</h3>
+                </div>
+              </div>
+            </div>
+
+            <div className="col-md-4">
+              <div className="card bg-light">
+                <div className="card-body">
+                  <h6>Present</h6>
+                  <h3 className="text-success">{historySummary.present}</h3>
+                </div>
+              </div>
+            </div>
+
+            <div className="col-md-4">
+              <div className="card bg-light">
+                <div className="card-body">
+                  <h6>Absent</h6>
+                  <h3 className="text-danger">{historySummary.absent}</h3>
+                </div>
+              </div>
+            </div>
+
+            <div className="col-md-4">
+              <div className="card bg-light">
+                <div className="card-body">
+                  <h6>Late</h6>
+                  <h3 className="text-warning">{historySummary.late}</h3>
+                </div>
+              </div>
+            </div>
+
+            <div className="col-md-4">
+              <div className="card bg-light">
+                <div className="card-body">
+                  <h6>Excused</h6>
+                  <h3>{historySummary.excused}</h3>
+                </div>
+              </div>
+            </div>
+
+            <div className="col-md-4">
+              <div className="card bg-light">
+                <div className="card-body">
+                  <h6>Attendance Percentage</h6>
+                  <h3 className="text-primary">
+                    {historySummary.percentage}%
+                  </h3>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        {historyRecords.length > 0 && (
+          <div className="table-responsive mt-4">
+            <h6>Attendance Records</h6>
+
+            <table className="table table-bordered table-striped">
+              <thead className="table-light">
+                <tr>
+                  <th>Date</th>
+                  <th>Academic Year</th>
+                  <th>Class</th>
+                  <th>Section</th>
+                  <th>Status</th>
+                  <th>Remarks</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {historyRecords.map((record) => (
+                  <tr key={record._id}>
+                    <td>
+                      {new Date(record.date).toLocaleDateString("en-IN")}
+                    </td>
+                    <td>{record.academicYearId?.name || "-"}</td>
+                    <td>{record.classId?.name || "-"}</td>
+                    <td>{record.sectionId?.name || "-"}</td>
+                    <td>{record.status}</td>
+                    <td>{record.remarks || "-"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {!historyLoading &&
+          historyRecords.length === 0 &&
+          !historyError && (
+            <p className="text-muted mt-3 mb-0">
+              No attendance records to display. Select a student and date range,
+              then click View History.
+            </p>
+          )}
+      </div>
     </main>
   );
 }

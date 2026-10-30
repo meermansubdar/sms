@@ -11,6 +11,7 @@ import EnrollmentManagement from "../EnrollmentManagement";
 import AttendanceManagement from "../AttendanceManagement";
 import UserManagement from "../UserManagement";
 import StudentProfile from "../StudentProfile";
+import FeeStructureManagement from "../FeeStructureManagement";
 
 const STUDENT_MODULE_ROLES = [
   "Administrator",
@@ -80,6 +81,18 @@ const ATTENDANCE_MANAGE_ROLES = [
 ];
 
 const USER_MANAGEMENT_ROLES = [
+  "Administrator",
+  "Principal",
+];
+
+const FEE_STRUCTURE_VIEW_ROLES = [
+  "Administrator",
+  "Principal",
+  "Teacher",
+  "Accountant",
+];
+
+const FEE_STRUCTURE_MANAGE_ROLES = [
   "Administrator",
   "Principal",
 ];
@@ -211,13 +224,21 @@ export default function AuthGate() {
   const canViewUserManagement =
   USER_MANAGEMENT_ROLES.includes(user.role);
 
+  const canViewFeeStructures =
+  FEE_STRUCTURE_VIEW_ROLES.includes(user.role);
+
+  const canManageFeeStructures =
+  FEE_STRUCTURE_MANAGE_ROLES.includes(user.role);
+
   const canViewAnyModule =
     canViewStudents ||
     canViewAcademicYears ||
     canViewClasses ||
     canViewSections ||
     canViewEnrollments ||
-    canViewAttendance;
+    canViewAttendance ||
+    canViewFeeStructures ||
+    canViewUserManagement;
 
   return (
     <>
@@ -332,6 +353,7 @@ export default function AuthGate() {
                     Enrollment Management
                 </button>
                 )}
+
                 {canViewAttendance && (
                 <button
                     type="button"
@@ -348,6 +370,7 @@ export default function AuthGate() {
                     Attendance Management
                 </button>
                 )}
+
                 {canViewUserManagement && (
                 <button
                   type="button"
@@ -360,6 +383,23 @@ export default function AuthGate() {
                   aria-current={activeModule === "users" ? "page" : undefined}
                 >
                   User Management
+                </button>
+              )}
+
+              {canViewFeeStructures && (
+                <button
+                  type="button"
+                  className={`btn btn-sm ${
+                    activeModule === "feeStructures"
+                      ? "btn-primary"
+                      : "btn-outline-primary"
+                  }`}
+                  onClick={() => openModule("feeStructures")}
+                  aria-current={
+                    activeModule === "feeStructures" ? "page" : undefined
+                  }
+                >
+                  Fee Structure Management
                 </button>
               )}
             </div>
@@ -411,6 +451,13 @@ export default function AuthGate() {
           user={user}
           onBack={() => openModule("students")}
         />
+        )}
+
+        {activeModule === "feeStructures" && canViewFeeStructures && (
+          <FeeStructureManagement
+            user={user}
+            onBack={() => openModule("students")}
+          />
         )}
 
       {!canViewAnyModule && (
