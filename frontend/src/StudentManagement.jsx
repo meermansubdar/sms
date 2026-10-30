@@ -20,6 +20,12 @@ const emptyForm = {
 
 export default function App() {
   const [students, setStudents] = useState([]);
+  const [academicYears, setAcademicYears] = useState([]);
+  const [classes, setClasses] = useState([]);
+  const [selectedClassId, setSelectedClassId] = useState("");
+  const [selectedAcademicYearId, setSelectedAcademicYearId] = useState("");
+  const [sections, setSections] = useState([]);
+  const [selectedSectionId, setSelectedSectionId] = useState("");
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState(null);
   const [search, setSearch] = useState("");
@@ -35,7 +41,8 @@ export default function App() {
     setError("");
 
     try {
-      const response = await api.get(API_URL, {
+      // First, retrieve student records using existing filters.
+      const studentResponse = await api.get(API_URL, {
         params: {
           search: search.trim() || undefined,
           status: statusFilter || undefined,
@@ -43,7 +50,36 @@ export default function App() {
         },
       });
 
-      setStudents(response.data.data);
+      let filteredStudents = studentResponse.data.data || [];
+
+      // If an academic year is selected, filter students through enrollments.
+      if (selectedAcademicYearId) {
+        const enrollmentResponse = await api.get("/enrollments", {
+          params: {
+            academicYearId: selectedAcademicYearId,
+            classId: selectedClassId || undefined,
+            sectionId: selectedSectionId || undefined,
+            status: "Active",
+            limit: 100,
+          },
+        });
+
+        const enrolledStudentIds = new Set(
+          (enrollmentResponse.data.data || []).map((enrollment) => {
+            const student = enrollment.studentId;
+
+            return typeof student === "object"
+              ? student._id
+              : student;
+          })
+        );
+
+        filteredStudents = filteredStudents.filter((student) =>
+          enrolledStudentIds.has(student._id)
+        );
+      }
+
+      setStudents(filteredStudents);
     } catch (err) {
       setError(
         err.response?.data?.message ||
@@ -52,11 +88,97 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  }, [search, statusFilter]);
+  }, [
+    search,
+    statusFilter,
+    selectedAcademicYearId,
+    selectedClassId,
+    selectedSectionId,
+  ]);
+
+  const loadAcademicYears = useCallback(async () => {
+    try {
+      const response = await api.get("/academic-years", {
+        params: {
+          status: "Active",
+          limit: 100,
+        },
+      });
+
+      setAcademicYears(response.data.data || []);
+    } catch (err) {
+      setError(
+        err.response?.data?.message ||
+          "Unable to load academic years."
+      );
+    }
+  }, []);
+
+  const loadClasses = useCallback(async () => {
+    try {
+      const response = await api.get("/classes", {
+        params: {
+          status: "Active",
+          limit: 100,
+        },
+      });
+
+      setClasses(response.data.data || []);
+    } catch (err) {
+      setError(
+        err.response?.data?.message ||
+          "Unable to load classes."
+      );
+    }
+  }, []);
+
+  const loadSections = useCallback(async (classId) => {
+    if (!classId) {
+      setSections([]);
+      return;
+    }
+
+    try {
+      const response = await api.get("/sections", {
+        params: {
+          classId,
+          status: "Active",
+          limit: 100,
+        },
+      });
+
+      setSections(response.data.data || []);
+    } catch (err) {
+      setError(
+        err.response?.data?.message ||
+          "Unable to load sections."
+      );
+    }
+  }, []);
 
   useEffect(() => {
     loadStudents();
   }, [loadStudents]);
+
+  useEffect(() => {
+    loadAcademicYears();
+  }, [loadAcademicYears]);
+
+  useEffect(() => {
+    loadClasses();
+  }, [loadClasses]);
+
+  useEffect(() => {
+    setSelectedSectionId("");
+    setSections([]);
+    loadSections(selectedClassId);
+  }, [selectedClassId, loadSections]);
+
+  useEffect(() => {
+    setSelectedClassId("");
+    setSelectedSectionId("");
+    setSections([]);
+  }, [selectedAcademicYearId]);
 
   function handleChange(event) {
     const { name, value } = event.target;
@@ -450,6 +572,74 @@ export default function App() {
 
           <div className="card-body">
             <div className="row g-2 mb-3">
+                <div className="col-12 col-md-4">
+                  <label className="form-label" htmlFor="academicYearFilter">
+                    Academic Year
+                  </label>
+
+                  <select
+                    id="academicYearFilter"
+                    className="form-select"
+                    value={selectedAcademicYearId}
+                    onChange={(event) =>
+                      setSelectedAcademicYearId(event.target.value)
+                    }
+                  >
+                    <option value="">Select Academic Year</option>
+
+                    {academicYears.map((year) => (
+                      <option key={year._id} value={year._id}>
+                        {year.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="col-12 col-md-4">
+                <label className="form-label" htmlFor="classFilter">
+                  Class
+                </label>
+
+                <select
+                  id="classFilter"
+                  className="form-select"
+                  value={selectedClassId}
+                  onChange={(event) =>
+                    setSelectedClassId(event.target.value)
+                  }
+                  disabled={!selectedAcademicYearId}
+                >
+                  <option value="">Select Class</option>
+
+                  {classes.map((schoolClass) => (
+                    <option key={schoolClass._id} value={schoolClass._id}>
+                      {schoolClass.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="col-12 col-md-4">
+                <label className="form-label" htmlFor="sectionFilter">
+                  Section
+                </label>
+
+                <select
+                  id="sectionFilter"
+                  className="form-select"
+                  value={selectedSectionId}
+                  onChange={(event) =>
+                    setSelectedSectionId(event.target.value)
+                  }
+                  disabled={!selectedClassId}
+                >
+                  <option value="">All Sections</option>
+
+                  {sections.map((section) => (
+                    <option key={section._id} value={section._id}>
+                      {section.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div className="col-12 col-md-8">
                 <label className="form-label" htmlFor="search">
                   Search by admission number or name

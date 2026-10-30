@@ -86,7 +86,6 @@ app.use("/api/fee-structures", feeStructureRoutes);
 app.use("/api/fee-assignments", feeAssignmentRoutes);
 app.use("/api/fee-payments", feePaymentRoutes);
 app.use("/api/teacher-assignments", teacherAssignmentRoutes);
-app.use("/api/students", studentRoutes);
 app.use("/api/users", userRoutes);
 
 
