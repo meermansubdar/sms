@@ -226,6 +226,49 @@ router.get(
         }
 
         filter.date = { $gte: start, $lt: end };
+      } else {
+        const dateFilter = {};
+
+        if (req.query.fromDate !== undefined) {
+          const start = getStartOfDay(req.query.fromDate);
+
+          if (!start) {
+            return res.status(400).json({
+              success: false,
+              message: "Invalid fromDate.",
+            });
+          }
+
+          dateFilter.$gte = start;
+        }
+
+        if (req.query.toDate !== undefined) {
+          const end = getNextDay(req.query.toDate);
+
+          if (!end) {
+            return res.status(400).json({
+              success: false,
+              message: "Invalid toDate.",
+            });
+          }
+
+          dateFilter.$lt = end;
+        }
+
+        if (
+          dateFilter.$gte &&
+          dateFilter.$lt &&
+          dateFilter.$gte >= dateFilter.$lt
+        ) {
+          return res.status(400).json({
+            success: false,
+            message: "fromDate must be before or equal to toDate.",
+          });
+        }
+
+        if (Object.keys(dateFilter).length > 0) {
+          filter.date = dateFilter;
+        }
       }
 
       const [records, total] = await Promise.all([
@@ -247,6 +290,116 @@ router.get(
           limit,
           total,
           totalPages: Math.ceil(total / limit),
+        },
+      });
+    } catch (error) {
+      return next(error);
+    }
+  }
+);
+
+// GET /api/attendance/daily-report
+// Filters: date, academicYearId, classId, sectionId
+router.get(
+  "/daily-report",
+  requireRole(...viewers),
+  async (req, res, next) => {
+    try {
+      const { date, academicYearId, classId, sectionId } = req.query;
+
+      if (!date || !academicYearId || !classId || !sectionId) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Date, academic year, class, and section are required.",
+        });
+      }
+
+      for (const [field, value] of Object.entries({
+        academicYearId,
+        classId,
+        sectionId,
+      })) {
+        if (!isValidId(value)) {
+          return res.status(400).json({
+            success: false,
+            message: `Invalid ${field}.`,
+          });
+        }
+      }
+
+      const start = getStartOfDay(date);
+      const end = getNextDay(date);
+
+      if (!start || !end) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid attendance date.",
+        });
+      }
+
+      const match = {
+        academicYearId: new mongoose.Types.ObjectId(academicYearId),
+        classId: new mongoose.Types.ObjectId(classId),
+        sectionId: new mongoose.Types.ObjectId(sectionId),
+        date: { $gte: start, $lt: end },
+      };
+
+      const [totalStudents, attendanceCounts] = await Promise.all([
+        Enrollment.countDocuments({
+          academicYearId,
+          classId,
+          sectionId,
+          status: "Active",
+        }),
+
+        Attendance.aggregate([
+          { $match: match },
+          {
+            $group: {
+              _id: "$status",
+              count: { $sum: 1 },
+            },
+          },
+        ]),
+      ]);
+
+      const counts = {
+        Present: 0,
+        Absent: 0,
+        Late: 0,
+        Excused: 0,
+      };
+
+      attendanceCounts.forEach((item) => {
+        counts[item._id] = item.count;
+      });
+
+      const marked = Object.values(counts).reduce(
+        (sum, count) => sum + count,
+        0
+      );
+
+      const notMarked = Math.max(0, totalStudents - marked);
+
+      const attendancePercentage =
+        totalStudents > 0
+          ? Number(
+              (((counts.Present + counts.Late) / totalStudents) * 100).toFixed(2)
+            )
+          : 0;
+
+      return res.json({
+        success: true,
+        data: {
+          totalStudents,
+          present: counts.Present,
+          absent: counts.Absent,
+          late: counts.Late,
+          excused: counts.Excused,
+          marked,
+          notMarked,
+          attendancePercentage,
         },
       });
     } catch (error) {

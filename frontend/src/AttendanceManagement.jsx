@@ -22,6 +22,10 @@ export default function AttendanceManagement({ user, onBack }) {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
+  const [report, setReport] = useState(null);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportError, setReportError] = useState("");
+
   const canManage = ["Administrator", "Principal"].includes(user?.role);
 
   useEffect(() => {
@@ -257,6 +261,39 @@ export default function AttendanceManagement({ user, onBack }) {
     }
   }
 
+  async function loadDailyReport() {
+    if (!academicYearId || !classId || !sectionId || !date) {
+      setReportError(
+        "Select an academic year, class, section, and date."
+      );
+      return;
+    }
+
+    setReportLoading(true);
+    setReportError("");
+    setReport(null);
+
+    try {
+      const response = await api.get("/attendance/daily-report", {
+        params: {
+          date,
+          academicYearId,
+          classId,
+          sectionId,
+        },
+      });
+
+      setReport(response.data.data);
+    } catch (err) {
+      setReportError(
+        err.response?.data?.message ||
+          "Unable to load the daily attendance report."
+      );
+    } finally {
+      setReportLoading(false);
+    }
+  }
+
   useEffect(() => {
     if (students.length) {
       loadExistingAttendance();
@@ -362,6 +399,14 @@ export default function AttendanceManagement({ user, onBack }) {
               >
                 {loading ? "Loading..." : "Load Students"}
               </button>
+              <button
+                type="button"
+                className="btn btn-success"
+                onClick={loadDailyReport}
+                disabled={reportLoading}
+              >
+                {reportLoading ? "Generating..." : "Generate Daily Report"}
+              </button>
             </div>
           </div>
         </div>
@@ -458,6 +503,66 @@ export default function AttendanceManagement({ user, onBack }) {
           )}
         </div>
       </div>
+      {/* Daily Attendance Report */}
+      {reportError && (
+        <div className="alert alert-danger mt-3">
+          {reportError}
+        </div>
+      )}
+
+      {report && (
+        <div className="card mt-4">
+          <div className="card-header">
+            <h5 className="mb-0">Daily Attendance Report</h5>
+          </div>
+
+          <div className="card-body">
+            <div className="row g-3">
+              <div className="col-md-3">
+                <strong>Total Students</strong>
+                <h4>{report.totalStudents}</h4>
+              </div>
+
+              <div className="col-md-3">
+                <strong>Present</strong>
+                <h4 className="text-success">{report.present}</h4>
+              </div>
+
+              <div className="col-md-3">
+                <strong>Absent</strong>
+                <h4 className="text-danger">{report.absent}</h4>
+              </div>
+
+              <div className="col-md-3">
+                <strong>Late</strong>
+                <h4 className="text-warning">{report.late}</h4>
+              </div>
+
+              <div className="col-md-3">
+                <strong>Excused</strong>
+                <h4>{report.excused}</h4>
+              </div>
+
+              <div className="col-md-3">
+                <strong>Marked</strong>
+                <h4>{report.marked}</h4>
+              </div>
+
+              <div className="col-md-3">
+                <strong>Not Marked</strong>
+                <h4>{report.notMarked}</h4>
+              </div>
+
+              <div className="col-md-3">
+                <strong>Attendance Percentage</strong>
+                <h4 className="text-primary">
+                  {report.attendancePercentage}%
+                </h4>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
