@@ -134,6 +134,66 @@ export default function FeeStructureManagement({ user, onBack }) {
     return "";
     }
 
+    
+    async function handleSaveFeeStructure(e) {
+        e.preventDefault();
+
+        setFormError("");
+
+        const validationMessage = validateFeeStructure();
+
+        if (validationMessage) {
+            setFormError(validationMessage);
+            return;
+        }
+
+        try {
+            setSaving(true);
+
+            const payload = {
+            name: formData.name.trim(),
+            academicYearId: formData.academicYearId,
+            classId: formData.classId,
+            currency: "INR",
+            components: formData.components.map((component) => ({
+                name: component.name.trim(),
+                amount: Number(component.amount),
+            })),
+            installments: formData.installments.map((installment) => ({
+                name: installment.name.trim(),
+                amount: Number(installment.amount),
+                dueDate: installment.dueDate,
+            })),
+            remarks: formData.remarks.trim(),
+            };
+
+            await api.post("/fee-structures", payload);
+
+            alert("Fee Structure created successfully!");
+
+            setShowForm(false);
+            setFormData({
+            name: "",
+            academicYearId: "",
+            classId: "",
+            currency: "INR",
+            components: [{ name: "", amount: "" }],
+            installments: [{ name: "", amount: "", dueDate: "" }],
+            remarks: "",
+            });
+
+            await loadFeeStructures();
+        } catch (err) {
+            setFormError(
+            err.response?.data?.message ||
+            "Unable to create Fee Structure."
+            );
+        } finally {
+            setSaving(false);
+        }
+    }
+
+
 
   async function loadFeeStructures() {
     try {
@@ -475,7 +535,14 @@ export default function FeeStructureManagement({ user, onBack }) {
                             </div>
                         </div>
                         </div>
-                    </div>                    
+                    </div> 
+                    
+                    {formError && (
+                        <div className="alert alert-danger mt-3">
+                        {formError}
+                        </div>
+                    )}
+
                     <div className="mt-4">
                         <label className="form-label">Remarks (Optional)</label>
                         <textarea
@@ -493,13 +560,31 @@ export default function FeeStructureManagement({ user, onBack }) {
                         </small>
                     </div>
 
+                    
+                    <div className="d-flex justify-content-end gap-2 mt-4">
+                        <button
+                        type="button"
+                        className="btn btn-outline-secondary"
+                        onClick={() => {
+                            setShowForm(false);
+                            setFormError("");
+                        }}
+                        disabled={saving}
+                        >
+                        Cancel
+                        </button>
 
+                        <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={handleSaveFeeStructure}
+                        disabled={saving}
+                        >
+                        {saving ? "Saving..." : "Save Fee Structure"}
+                        </button>
+                    </div>
                 </div>
                 )}
-
-
-
-
       <div className="card shadow-sm mb-4">
         <div className="card-body">
           <h5 className="card-title mb-3">Search Fee Structures</h5>
