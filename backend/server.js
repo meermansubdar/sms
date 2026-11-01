@@ -18,6 +18,7 @@ import feeAssignmentRoutes from "./routes/feeAssignmentRoutes.js";
 import feePaymentRoutes from "./routes/feePaymentRoutes.js";
 import teacherAssignmentRoutes from "./routes/teacherAssignmentRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
+import dashboardRoutes from "./routes/dashboardRoutes.js";
 
 dotenv.config();
 
@@ -85,6 +86,7 @@ app.use("/api/attendance", attendanceRoutes);
 app.use("/api/fee-structures", feeStructureRoutes);
 app.use("/api/fee-assignments", feeAssignmentRoutes);
 app.use("/api/fee-payments", feePaymentRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/teacher-assignments", teacherAssignmentRoutes);
 app.use("/api/users", userRoutes);
 

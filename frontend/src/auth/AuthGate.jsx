@@ -14,6 +14,7 @@ import StudentProfile from "../StudentProfile";
 import FeeStructureManagement from "../FeeStructureManagement";
 import FeeAssignmentManagement from "../FeeAssignmentManagement";
 import FeePaymentManagement from "../FeePaymentManagement";
+import FeeCollectionDashboard from "../FeeCollectionDashboard";
 
 const STUDENT_MODULE_ROLES = [
   "Administrator",
@@ -116,6 +117,11 @@ const FEE_PAYMENT_VIEW_ROLES = [
   "Principal",
   "Teacher",
   "Accountant",
+];
+
+const FEE_DASHBOARD_VIEW_ROLES = [
+  "Administrator",
+  "Principal",
 ];
 
 export default function AuthGate() {
@@ -260,6 +266,9 @@ export default function AuthGate() {
   const canViewFeePayments =
   FEE_PAYMENT_VIEW_ROLES.includes(user.role);
 
+  const canViewFeeDashboard =
+  FEE_DASHBOARD_VIEW_ROLES.includes(user.role);
+
   const canViewAnyModule =
     canViewStudents ||
     canViewAcademicYears ||
@@ -268,7 +277,8 @@ export default function AuthGate() {
     canViewEnrollments ||
     canViewAttendance ||
     canViewFeeStructures ||
-    canViewUserManagement;
+    canViewUserManagement ||
+    canViewFeeDashboard;
 
   return (
     <>
@@ -466,6 +476,22 @@ export default function AuthGate() {
                   Fee Payment Management
                 </button>
               )}
+              {canViewFeeDashboard && (
+                <button
+                  type="button"
+                  className={`btn btn-sm ${
+                    activeModule === "feeDashboard"
+                      ? "btn-primary"
+                      : "btn-outline-primary"
+                  }`}
+                  onClick={() => openModule("feeDashboard")}
+                  aria-current={
+                    activeModule === "feeDashboard" ? "page" : undefined
+                  }
+                >
+                  Fee Collection Dashboard
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -535,6 +561,13 @@ export default function AuthGate() {
           <FeePaymentManagement
             user={user}
             onBack={() => openModule("feeAssignments")}
+          />
+        )}
+
+        {activeModule === "feeDashboard" && canViewFeeDashboard && (
+          <FeeCollectionDashboard
+            user={user}
+            onBack={() => openModule("students")}
           />
         )}
 
