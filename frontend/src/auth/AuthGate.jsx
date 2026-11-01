@@ -12,6 +12,8 @@ import AttendanceManagement from "../AttendanceManagement";
 import UserManagement from "../UserManagement";
 import StudentProfile from "../StudentProfile";
 import FeeStructureManagement from "../FeeStructureManagement";
+import FeeAssignmentManagement from "../FeeAssignmentManagement";
+import FeePaymentManagement from "../FeePaymentManagement";
 
 const STUDENT_MODULE_ROLES = [
   "Administrator",
@@ -95,6 +97,25 @@ const FEE_STRUCTURE_VIEW_ROLES = [
 const FEE_STRUCTURE_MANAGE_ROLES = [
   "Administrator",
   "Principal",
+];
+
+const FEE_ASSIGNMENT_VIEW_ROLES = [
+  "Administrator",
+  "Principal",
+  "Teacher",
+  "Accountant",
+];
+
+const FEE_ASSIGNMENT_MANAGE_ROLES = [
+  "Administrator",
+  "Principal",
+];
+
+const FEE_PAYMENT_VIEW_ROLES = [
+  "Administrator",
+  "Principal",
+  "Teacher",
+  "Accountant",
 ];
 
 export default function AuthGate() {
@@ -229,6 +250,15 @@ export default function AuthGate() {
 
   const canManageFeeStructures =
   FEE_STRUCTURE_MANAGE_ROLES.includes(user.role);
+
+  const canViewFeeAssignments =
+  FEE_ASSIGNMENT_VIEW_ROLES.includes(user.role);
+
+  const canManageFeeAssignments =
+  FEE_ASSIGNMENT_MANAGE_ROLES.includes(user.role);
+
+  const canViewFeePayments =
+  FEE_PAYMENT_VIEW_ROLES.includes(user.role);
 
   const canViewAnyModule =
     canViewStudents ||
@@ -402,6 +432,40 @@ export default function AuthGate() {
                   Fee Structure Management
                 </button>
               )}
+
+              {canViewFeeAssignments && (
+                <button
+                  type="button"
+                  className={`btn btn-sm ${
+                    activeModule === "feeAssignments"
+                      ? "btn-primary"
+                      : "btn-outline-primary"
+                  }`}
+                  onClick={() => openModule("feeAssignments")}
+                  aria-current={
+                    activeModule === "feeAssignments" ? "page" : undefined
+                  }
+                >
+                  Fee Assignment Management
+                </button>
+              )}
+
+              {canViewFeePayments && (
+                <button
+                  type="button"
+                  className={`btn btn-sm ${
+                    activeModule === "feePayments"
+                      ? "btn-primary"
+                      : "btn-outline-primary"
+                  }`}
+                  onClick={() => openModule("feePayments")}
+                  aria-current={
+                    activeModule === "feePayments" ? "page" : undefined
+                  }
+                >
+                  Fee Payment Management
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -457,6 +521,20 @@ export default function AuthGate() {
           <FeeStructureManagement
             user={user}
             onBack={() => openModule("students")}
+          />
+        )}
+
+        {activeModule === "feeAssignments" && canViewFeeAssignments && (
+          <FeeAssignmentManagement
+            user={user}
+            onBack={() => openModule("students")}
+          />
+        )}
+
+        {activeModule === "feePayments" && canViewFeePayments && (
+          <FeePaymentManagement
+            user={user}
+            onBack={() => openModule("feeAssignments")}
           />
         )}
 
