@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import api from "./services/api";
 import FeeReceipt from "./FeeReceipt";
 
-function FeePaymentManagement() {
+function FeePaymentManagement({ user }) {
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -12,6 +12,9 @@ function FeePaymentManagement() {
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [showPaymentDetails, setShowPaymentDetails] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
+  const [showCancelForm, setShowCancelForm] = useState(false);
+  const [cancellationReason, setCancellationReason] = useState("");
+  const [cancellingPayment, setCancellingPayment] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [activeAssignments, setActiveAssignments] = useState([]);
   const [selectedAssignment, setSelectedAssignment] = useState("");
@@ -187,6 +190,46 @@ function FeePaymentManagement() {
         );
     } finally {
         setLoading(false);
+    }
+  };
+
+  const handleCancelPayment = async () => {
+    if (!cancellationReason.trim()) {
+        setError("Please enter a cancellation reason.");
+        return;
+    }
+
+    if (!selectedPayment?._id) {
+        setError("No payment selected for cancellation.");
+        return;
+    }
+
+    try {
+        setCancellingPayment(true);
+        setError("");
+        setSuccess("");
+
+        await api.patch(
+        `/fee-payments/${selectedPayment._id}/cancel`,
+        {
+            cancellationReason: cancellationReason.trim(),
+        }
+        );
+
+        setSuccess("Payment cancelled successfully.");
+        setShowCancelForm(false);
+        setCancellationReason("");
+
+        await loadPayments();
+        await loadPaymentDetails(selectedPayment._id);
+
+    } catch (err) {
+        setError(
+        err.response?.data?.message ||
+        "Failed to cancel payment."
+        );
+    } finally {
+        setCancellingPayment(false);
     }
   };
 
@@ -377,6 +420,84 @@ function FeePaymentManagement() {
                     </p>
                     </div>
                 </div>
+
+                {(user?.role === "Administrator" ||
+                    user?.role === "Principal") &&
+                    selectedPayment?.status === "Completed" && (
+                        <div className="mt-4">
+                        <button
+                            type="button"
+                            className="btn btn-danger"
+                            onClick={() => {
+                            setShowCancelForm(true);
+                            setCancellationReason("");
+                            setError("");
+                            }}
+                        >
+                            <i className="bi bi-x-circle me-1"></i>
+                            Cancel Payment
+                        </button>
+                        </div>
+                    )}
+
+                    {showCancelForm && (
+                        <div className="card border-danger mt-3">
+                            <div className="card-body">
+                            <h6 className="text-danger fw-bold">
+                                Cancel Fee Payment
+                            </h6>
+
+                            <label className="form-label">
+                                Cancellation Reason *
+                            </label>
+
+                            <textarea
+                                className="form-control"
+                                rows="3"
+                                maxLength="500"
+                                value={cancellationReason}
+                                onChange={(e) =>
+                                setCancellationReason(e.target.value)
+                                }
+                                placeholder="Enter the reason for cancelling this payment..."
+                            />
+
+                            <small className="text-muted">
+                                {cancellationReason.length}/500 characters
+                            </small>
+
+                            <div className="d-flex gap-2 mt-3">
+                                <button
+                                type="button"
+                                className="btn btn-danger"
+                                onClick={handleCancelPayment}
+                                disabled={
+                                    cancellingPayment ||
+                                    cancellationReason.trim().length < 3
+                                }
+                                >
+                                {cancellingPayment
+                                    ? "Cancelling..."
+                                    : "Confirm Cancellation"}
+                                </button>
+
+                                <button
+                                type="button"
+                                className="btn btn-outline-secondary"
+                                onClick={() => {
+                                    setShowCancelForm(false);
+                                    setCancellationReason("");
+                                    setError("");
+                                }}
+                                disabled={cancellingPayment}
+                                >
+                                Go Back
+                                </button>
+                            </div>
+                            </div>
+                        </div>
+                        )}
+
                 {selectedPayment.status === "Cancelled" && (
                     <>
                         <hr className="my-4" />

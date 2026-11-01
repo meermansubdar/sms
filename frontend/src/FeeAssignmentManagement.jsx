@@ -29,6 +29,12 @@ export default function FeeAssignmentManagement({ user, onBack }) {
   const [assignments, setAssignments] = useState([]);
   const [enrollments, setEnrollments] = useState([]);
 
+  const [paymentSummaries, setPaymentSummaries] = useState({});
+
+  const [showPaymentBreakdown, setShowPaymentBreakdown] = useState(false);
+  const [selectedBreakdown, setSelectedBreakdown] = useState(null);
+  const [breakdownLoading, setBreakdownLoading] = useState(false);
+
   const [showForm, setShowForm] = useState(false);
   
   const [feeStructures, setFeeStructures] = useState([]);
@@ -122,6 +128,33 @@ export default function FeeAssignmentManagement({ user, onBack }) {
     }
   }
 
+  async function handleViewPaymentBreakdown(assignment) {
+    setBreakdownLoading(true);
+    setError("");
+    setSelectedBreakdown(null);
+
+    try {
+        const response = await api.get(
+        `/fee-payments/outstanding/${assignment._id}`
+        );
+
+        setSelectedBreakdown({
+        assignment,
+        installments: response.data?.data?.installments || [],
+        totalOutstanding: Number(
+            response.data?.data?.totalOutstanding || 0
+        ),
+        });
+
+        setShowPaymentBreakdown(true);
+
+    } catch (err) {
+        setError(getErrorMessage(err));
+    } finally {
+        setBreakdownLoading(false);
+    }
+  }
+
   useEffect(() => {
     async function loadPage() {
         setLoading(true);
@@ -143,7 +176,45 @@ export default function FeeAssignmentManagement({ user, onBack }) {
 
         setEnrollments(getArray(enrollmentResponse));
         setFeeStructures(getArray(structureResponse));
-        setAssignments(getArray(assignmentResponse));
+
+        const assignmentList = getArray(assignmentResponse);
+        setAssignments(assignmentList);
+
+        // Load payment summaries for each assignment
+        const summaryResults = await Promise.all(
+        assignmentList.map(async (assignment) => {
+            try {
+            const response = await api.get(
+                `/fee-payments/outstanding/${assignment._id}`
+            );
+
+            const outstanding =
+                Number(response.data?.data?.totalOutstanding || 0);
+
+            const finalTotal = Number(assignment.finalTotal || 0);
+
+            return {
+                id: assignment._id,
+                totalPaid: Math.max(0, finalTotal - outstanding),
+                outstanding,
+            };
+            } catch (error) {
+            return {
+                id: assignment._id,
+                totalPaid: null,
+                outstanding: null,
+            };
+            }
+        })
+        );
+
+        const summaries = {};
+
+        summaryResults.forEach((summary) => {
+        summaries[summary.id] = summary;
+        });
+
+        setPaymentSummaries(summaries);
         } catch (err) {
         setError(getErrorMessage(err));
         } finally {
@@ -348,6 +419,95 @@ export default function FeeAssignmentManagement({ user, onBack }) {
                 </div>
             </div>
             )}
+            {showPaymentBreakdown && selectedBreakdown && (
+                <div className="card shadow-sm mb-4 border-primary">
+                    <div className="card-header d-flex justify-content-between align-items-center">
+                    <strong>Installment-wise Payment Breakdown</strong>
+
+                    <button
+                        type="button"
+                        className="btn btn-outline-secondary btn-sm"
+                        onClick={() => {
+                        setShowPaymentBreakdown(false);
+                        setSelectedBreakdown(null);
+                        }}
+                    >
+                        Close
+                    </button>
+                    </div>
+
+                    <div className="card-body">
+                    <h6 className="mb-3">
+                        Student: {selectedBreakdown.assignment.studentId?.firstName}{" "}
+                        {selectedBreakdown.assignment.studentId?.lastName}
+                    </h6>
+
+                    <div className="table-responsive">
+                        <table className="table table-bordered table-hover align-middle">
+                        <thead className="table-light">
+                            <tr>
+                            <th>Installment</th>
+                            <th>Due Date</th>
+                            <th>Amount Due</th>
+                            <th>Amount Paid</th>
+                            <th>Outstanding</th>
+                            <th>Payment Status</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            {selectedBreakdown.installments.map((installment) => {
+                            const due = Number(installment.amountDue || 0);
+                            const paid = Number(installment.amountPaid || 0);
+                            const outstanding = Number(
+                                installment.outstandingAmount || 0
+                            );
+
+                            const status =
+                                outstanding <= 0
+                                ? "Paid"
+                                : paid > 0
+                                ? "Partially Paid"
+                                : "Pending";
+
+                            return (
+                                <tr key={installment.installmentId}>
+                                <td>{installment.name}</td>
+                                <td>
+                                    {installment.dueDate
+                                    ? new Date(installment.dueDate).toLocaleDateString("en-IN")
+                                    : "—"}
+                                </td>
+                                <td>₹{due.toFixed(2)}</td>
+                                <td>₹{paid.toFixed(2)}</td>
+                                <td>₹{outstanding.toFixed(2)}</td>
+                                <td>
+                                    <span
+                                    className={`badge ${
+                                        status === "Paid"
+                                        ? "text-bg-success"
+                                        : status === "Partially Paid"
+                                        ? "text-bg-warning"
+                                        : "text-bg-secondary"
+                                    }`}
+                                    >
+                                    {status}
+                                    </span>
+                                </td>
+                                </tr>
+                            );
+                            })}
+                        </tbody>
+                        </table>
+                    </div>
+
+                    <div className="text-end fw-bold mt-3">
+                        Total Outstanding: ₹
+                        {selectedBreakdown.totalOutstanding.toFixed(2)}
+                    </div>
+                    </div>
+                </div>
+            )}
         <section className="card shadow-sm">
             <div className="card-header fw-semibold">
                 Fee Assignment Records
@@ -384,23 +544,26 @@ export default function FeeAssignmentManagement({ user, onBack }) {
                 <div className="table-responsive">
                 <table className="table table-striped table-hover align-middle">
                     <thead>
-                    <tr>
-                        <th>Student</th>
-                        <th>Academic Year</th>
-                        <th>Class</th>
-                        <th>Fee Structure</th>
-                        <th>Original Total</th>
-                        <th>Concession</th>
-                        <th>Final Total</th>
-                        <th>Status</th>
-                    </tr>
+                        <tr>
+                            <th>Student</th>
+                            <th>Academic Year</th>
+                            <th>Class</th>
+                            <th>Fee Structure</th>
+                            <th>Original Total</th>
+                            <th>Concession</th>
+                            <th>Final Total</th>
+                            <th>Total Paid</th>
+                            <th>Outstanding Balance</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
                     </thead>
-
                     <tbody>
                     {assignments.map((item) => {
                         const student = item.studentId || {};
                         const studentName =
                         `${student.firstName || ""} ${student.lastName || ""}`.trim();
+                        const paymentSummary = paymentSummaries[item._id];
 
                         return (
                         <tr key={item._id}>
@@ -412,6 +575,17 @@ export default function FeeAssignmentManagement({ user, onBack }) {
                             <td>₹{Number(item.concessionTotal || 0).toFixed(2)}</td>
                             <td>₹{Number(item.finalTotal || 0).toFixed(2)}</td>
                             <td>
+                            {paymentSummary
+                                ? `₹${paymentSummary.totalPaid.toFixed(2)}`
+                                : "Loading..."}
+                            </td>
+
+                            <td className="fw-semibold text-danger">
+                            {paymentSummary
+                                ? `₹${paymentSummary.outstanding.toFixed(2)}`
+                                : "Loading..."}
+                            </td>
+                            <td>
                             <span
                                 className={`badge ${
                                 item.status === "Active"
@@ -422,13 +596,24 @@ export default function FeeAssignmentManagement({ user, onBack }) {
                                 {item.status}
                             </span>
                             </td>
+                            <td>
+                                <button
+                                    type="button"
+                                    className="btn btn-outline-primary btn-sm"
+                                    onClick={() => handleViewPaymentBreakdown(item)}
+                                    disabled={breakdownLoading}
+                                >
+                                    <i className="bi bi-eye me-1"></i>
+                                    View Breakdown
+                                </button>
+                            </td>
                         </tr>
                         );
                     })}
 
                     {assignments.length === 0 && (
                         <tr>
-                        <td colSpan="8" className="text-center text-secondary py-4">
+                        <td colSpan="10" className="text-center text-secondary py-4">
                             No fee assignments found.
                         </td>
                         </tr>
