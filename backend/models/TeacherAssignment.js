@@ -9,6 +9,12 @@ const teacherAssignmentSchema = new mongoose.Schema(
       required: true,
     },
 
+    subjectId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Subject",
+      required: true,
+    },
+
     sectionId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Section",
@@ -33,11 +39,11 @@ const teacherAssignmentSchema = new mongoose.Schema(
   }
 );
 
-// Prevent duplicate active assignments for the same
-// teacher, section, and academic year.
+// Prevent assigning the same subject to multiple teachers
+// in the same section and academic year.
 teacherAssignmentSchema.index(
   {
-    teacherId: 1,
+    subjectId: 1,
     sectionId: 1,
     academicYearId: 1,
   },
