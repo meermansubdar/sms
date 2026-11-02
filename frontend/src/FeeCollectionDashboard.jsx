@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import api from "./services/api";
+import * as XLSX from "xlsx";
 
 import {
   ResponsiveContainer,
@@ -13,6 +14,7 @@ import {
 
 function FeeCollectionDashboard({ user, onBack }) {
   const [academicYears, setAcademicYears] = useState([]);
+  const [academicYearWiseCollections, setAcademicYearWiseCollections] = useState([]);
   const [academicYearId, setAcademicYearId] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -46,6 +48,7 @@ function FeeCollectionDashboard({ user, onBack }) {
     }
 
     loadAcademicYears();
+    loadAcademicYearWiseCollections();
   }, []);
 
   async function loadDashboardData(selectedYearId) {
@@ -74,6 +77,101 @@ function FeeCollectionDashboard({ user, onBack }) {
     }
   }
 
+  const loadAcademicYearWiseCollections = async () => {
+    try {
+        const response = await api.get("/dashboard/academic-year-wise");
+
+        setAcademicYearWiseCollections(response.data.data || []);
+    } catch (error) {
+        console.error("Unable to load academic-year-wise collections:", error);
+    }
+  };
+
+  const exportToExcel = () => {
+    if (!dashboardData) {
+        alert("Dashboard data is not available.");
+        return;
+    }
+
+    // Sheet 1: Financial Summary
+    const summaryData = [
+        ["Metric", "Amount"],
+        ["Academic Year", academicYears.find(
+        (year) => year._id === academicYearId
+        )?.name || ""],
+        ["Total Fees Assigned", dashboardData.totalAssigned],
+        ["Total Fees Collected", dashboardData.totalCollected],
+        ["Outstanding Fees", dashboardData.totalOutstanding],
+        ["Collection Percentage", `${dashboardData.collectionPercentage}%`],
+        ["Total Concessions", dashboardData.totalConcessions],
+    ];
+
+    // Sheet 2: Monthly Fee Collection
+    const monthlyData = [
+        ["Month", "Year", "Fees Collected"],
+        ...dashboardData.monthlyCollections.map((item) => [
+        item.month,
+        item.year,
+        item.totalCollected,
+        ]),
+    ];
+
+    // Sheet 3: Class-wise Fee Collection
+    const classData = [
+        ["Class", "Fees Assigned", "Fees Collected", "Outstanding", "Collection %"],
+        ...dashboardData.classWiseCollections.map((item) => [
+        item.className,
+        item.totalAssigned,
+        item.totalCollected,
+        item.totalOutstanding,
+        `${item.collectionPercentage}%`,
+        ]),
+    ];
+
+    // Sheet 4: Academic-year-wise Fee Collection
+    const academicYearData = [
+        ["Academic Year", "Fees Assigned", "Fees Collected", "Outstanding", "Collection %"],
+        ...academicYearWiseCollections.map((item) => [
+        item.academicYear,
+        item.totalAssigned,
+        item.totalCollected,
+        item.totalOutstanding,
+        `${item.collectionPercentage}%`,
+        ]),
+    ];
+
+    const workbook = XLSX.utils.book_new();
+
+    XLSX.utils.book_append_sheet(
+        workbook,
+        XLSX.utils.aoa_to_sheet(summaryData),
+        "Financial Summary"
+    );
+
+    XLSX.utils.book_append_sheet(
+        workbook,
+        XLSX.utils.aoa_to_sheet(monthlyData),
+        "Monthly Collection"
+    );
+
+    XLSX.utils.book_append_sheet(
+        workbook,
+        XLSX.utils.aoa_to_sheet(classData),
+        "Class-wise Collection"
+    );
+
+    XLSX.utils.book_append_sheet(
+        workbook,
+        XLSX.utils.aoa_to_sheet(academicYearData),
+        "Academic Year Collection"
+    );
+
+    XLSX.writeFile(
+        workbook,
+        `Fee_Collection_Report_${academicYearId}.xlsx`
+    );
+  };
+
   useEffect(() => {
     if (academicYearId) {
         loadDashboardData(academicYearId);
@@ -90,13 +188,24 @@ function FeeCollectionDashboard({ user, onBack }) {
           </p>
         </div>
 
-        <button
-          className="btn btn-outline-secondary"
-          onClick={onBack}
-        >
-          Back
-        </button>
-      </div>
+        <div className="d-flex gap-2">
+            <button
+                className="btn btn-success"
+                onClick={exportToExcel}
+                disabled={!dashboardData || dashboardLoading}
+            >
+                <i className="bi bi-file-earmark-excel me-2"></i>
+                Export to Excel
+            </button>
+
+            <button
+                className="btn btn-outline-secondary"
+                onClick={onBack}
+            >
+                Back
+            </button>
+        </div>
+        </div>
 
       {loading ? (
         <p>Loading academic years...</p>
@@ -264,6 +373,95 @@ function FeeCollectionDashboard({ user, onBack }) {
                 </div>
                 </div>
             )}
+
+            {!dashboardLoading && dashboardData && (
+                <div className="card shadow-sm mt-4">
+                    <div className="card-body">
+                    <h5 className="fw-semibold mb-4">
+                        Class-wise Fee Collection
+                    </h5>
+
+                    <div className="table-responsive">
+                        <table className="table table-bordered table-hover align-middle">
+                        <thead className="table-light">
+                            <tr>
+                            <th>Class</th>
+                            <th className="text-end">Fees Assigned</th>
+                            <th className="text-end">Fees Collected</th>
+                            <th className="text-end">Outstanding</th>
+                            <th className="text-end">Collection %</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            {dashboardData.classWiseCollections.map((item) => (
+                            <tr key={item.classId}>
+                                <td className="fw-semibold">{item.className}</td>
+                                <td className="text-end">
+                                ₹{item.totalAssigned.toLocaleString("en-IN")}
+                                </td>
+                                <td className="text-end text-success">
+                                ₹{item.totalCollected.toLocaleString("en-IN")}
+                                </td>
+                                <td className="text-end text-danger">
+                                ₹{item.totalOutstanding.toLocaleString("en-IN")}
+                                </td>
+                                <td className="text-end">
+                                {item.collectionPercentage.toFixed(2)}%
+                                </td>
+                            </tr>
+                            ))}
+                        </tbody>
+                        </table>
+                    </div>
+                    </div>
+                </div>
+                )}
+
+                {!loading && academicYearWiseCollections.length > 0 && (
+                    <div className="card shadow-sm mt-4">
+                        <div className="card-body">
+                        <h5 className="fw-semibold mb-4">
+                            Academic-year-wise Fee Collection
+                        </h5>
+
+                        <div className="table-responsive">
+                            <table className="table table-bordered table-hover align-middle">
+                            <thead className="table-light">
+                                <tr>
+                                <th>Academic Year</th>
+                                <th className="text-end">Fees Assigned</th>
+                                <th className="text-end">Fees Collected</th>
+                                <th className="text-end">Outstanding</th>
+                                <th className="text-end">Collection %</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+                                {academicYearWiseCollections.map((item) => (
+                                <tr key={item.academicYearId}>
+                                    <td className="fw-semibold">{item.academicYear}</td>
+                                    <td className="text-end">
+                                    ₹{item.totalAssigned.toLocaleString("en-IN")}
+                                    </td>
+                                    <td className="text-end text-success">
+                                    ₹{item.totalCollected.toLocaleString("en-IN")}
+                                    </td>
+                                    <td className="text-end text-danger">
+                                    ₹{item.totalOutstanding.toLocaleString("en-IN")}
+                                    </td>
+                                    <td className="text-end">
+                                    {item.collectionPercentage.toFixed(2)}%
+                                    </td>
+                                </tr>
+                                ))}
+                            </tbody>
+                            </table>
+                        </div>
+                        </div>
+                    </div>
+                    )}
+        
 
     </div>
   );
