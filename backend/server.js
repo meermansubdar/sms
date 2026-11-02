@@ -17,6 +17,7 @@ import feeStructureRoutes from "./routes/feeStructureRoutes.js";
 import feeAssignmentRoutes from "./routes/feeAssignmentRoutes.js";
 import feePaymentRoutes from "./routes/feePaymentRoutes.js";
 import teacherAssignmentRoutes from "./routes/teacherAssignmentRoutes.js";
+import subjectRoutes from "./routes/subjectRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
 
@@ -88,6 +89,7 @@ app.use("/api/fee-assignments", feeAssignmentRoutes);
 app.use("/api/fee-payments", feePaymentRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/teacher-assignments", teacherAssignmentRoutes);
+app.use("/api/subjects", subjectRoutes);
 app.use("/api/users", userRoutes);
 
 

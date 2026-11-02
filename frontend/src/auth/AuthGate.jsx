@@ -15,6 +15,7 @@ import FeeStructureManagement from "../FeeStructureManagement";
 import FeeAssignmentManagement from "../FeeAssignmentManagement";
 import FeePaymentManagement from "../FeePaymentManagement";
 import FeeCollectionDashboard from "../FeeCollectionDashboard";
+import SubjectManagement from "../SubjectManagement";
 
 const STUDENT_MODULE_ROLES = [
   "Administrator",
@@ -120,6 +121,18 @@ const FEE_PAYMENT_VIEW_ROLES = [
 ];
 
 const FEE_DASHBOARD_VIEW_ROLES = [
+  "Administrator",
+  "Principal",
+];
+
+const SUBJECT_VIEW_ROLES = [
+  "Administrator",
+  "Principal",
+  "Teacher",
+  "Accountant",
+];
+
+const SUBJECT_MANAGE_ROLES = [
   "Administrator",
   "Principal",
 ];
@@ -268,6 +281,12 @@ export default function AuthGate() {
 
   const canViewFeeDashboard =
   FEE_DASHBOARD_VIEW_ROLES.includes(user.role);
+
+  const canViewSubjects =
+  SUBJECT_VIEW_ROLES.includes(user.role);
+
+  const canManageSubjects =
+  SUBJECT_MANAGE_ROLES.includes(user.role);
 
   const canViewAnyModule =
     canViewStudents ||
@@ -492,6 +511,23 @@ export default function AuthGate() {
                   Fee Collection Dashboard
                 </button>
               )}
+
+              {canViewSubjects && (
+                <button
+                  type="button"
+                  className={`btn btn-sm ${
+                    activeModule === "subjects"
+                      ? "btn-primary"
+                      : "btn-outline-primary"
+                  }`}
+                  onClick={() => openModule("subjects")}
+                  aria-current={
+                    activeModule === "subjects" ? "page" : undefined
+                  }
+                >
+                  Subject Management
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -566,6 +602,13 @@ export default function AuthGate() {
 
         {activeModule === "feeDashboard" && canViewFeeDashboard && (
           <FeeCollectionDashboard
+            user={user}
+            onBack={() => openModule("students")}
+          />
+        )}
+
+        {activeModule === "subjects" && canViewSubjects && (
+          <SubjectManagement
             user={user}
             onBack={() => openModule("students")}
           />
