@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import api from "./services/api";
 
-function SubjectManagement() {
+function SubjectManagement({ user, onBack, canManage }) {
   const [subjects, setSubjects] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -51,6 +51,119 @@ function SubjectManagement() {
       fetchSubjects();
   }, [search, statusFilter]);
 
+    const handleSaveSubject = async () => {
+        try {
+            setError("");
+            setSuccess("");
+
+            if (!formData.name.trim() || !formData.code.trim()) {
+            setError("Subject Name and Subject Code are required.");
+            return;
+            }
+
+            await api.post("/subjects", {
+            name: formData.name.trim(),
+            code: formData.code.trim().toUpperCase(),
+            description: formData.description.trim(),
+            });
+
+            setSuccess("Subject added successfully.");
+
+            setFormData({
+            name: "",
+            code: "",
+            description: "",
+            });
+
+            setShowForm(false);
+
+            await fetchSubjects();
+        } catch (err) {
+            setError(
+            err.response?.data?.message || "Failed to save subject."
+            );
+        }
+    };
+
+    const handleEditSubject = (subject) => {
+        setEditingSubject(subject);
+
+        setFormData({
+            name: subject.name,
+            code: subject.code,
+            description: subject.description || "",
+        });
+
+        setShowForm(true);
+        setError("");
+        setSuccess("");
+    };
+
+    const handleUpdateSubject = async () => {
+    try {
+        setError("");
+        setSuccess("");
+
+        if (!formData.name.trim() || !formData.code.trim()) {
+            setError("Subject Name and Subject Code are required.");
+            return;
+        }
+
+        await api.patch(`/subjects/${editingSubject._id}`, {
+            name: formData.name.trim(),
+            code: formData.code.trim().toUpperCase(),
+            description: formData.description.trim(),
+        });
+
+        setSuccess("Subject updated successfully.");
+
+        setEditingSubject(null);
+
+        setFormData({
+            name: "",
+            code: "",
+            description: "",
+        });
+
+        setShowForm(false);
+
+        await fetchSubjects();
+    } catch (err) {
+        setError(
+            err.response?.data?.message || "Failed to update subject."
+        );
+    }
+    };
+
+    const handleToggleStatus = async (subject) => {
+        const newStatus =
+            subject.status === "Active" ? "Inactive" : "Active";
+
+        const action =
+            newStatus === "Active" ? "activate" : "deactivate";
+
+        if (!window.confirm(`Are you sure you want to ${action} this subject?`)) {
+            return;
+        }
+
+        try {
+            setError("");
+            setSuccess("");
+
+            await api.patch(`/subjects/${subject._id}/status`, {
+                status: newStatus,
+            });
+
+            setSuccess(`Subject ${action}d successfully.`);
+
+            await fetchSubjects();
+        } catch (err) {
+            setError(
+                err.response?.data?.message || "Failed to update subject status."
+            );
+        }
+    };
+
     return (
         <div className="container-fluid p-4">
             <div className="d-flex justify-content-between align-items-center mb-4">
@@ -61,21 +174,23 @@ function SubjectManagement() {
                     </p>
                 </div>
 
-                <button
-                    className="btn btn-primary"
-                    onClick={() => {
-                    setEditingSubject(null);
-                    setFormData({
-                        name: "",
-                        code: "",
-                        description: "",
-                    });
-                    setShowForm(true);
-                    }}
-                >
-                    <i className="bi bi-plus-circle me-2"></i>
-                    Add Subject
-                </button>
+                    {canManage && (
+                        <button
+                            className="btn btn-primary"
+                            onClick={() => {
+                            setEditingSubject(null);
+                            setFormData({
+                                name: "",
+                                code: "",
+                                description: "",
+                            });
+                            setShowForm(true);
+                            }}
+                        >
+                            <i className="bi bi-plus-circle me-2"></i>
+                            Add Subject
+                        </button>
+                    )}
             </div>
 
             {error && (
@@ -99,7 +214,87 @@ function SubjectManagement() {
                         </div>
 
                         <div className="card-body">
-                            Subject form fields will be added here.
+                            <div className="mb-3">
+                                <label className="form-label">
+                                    Subject Name <span className="text-danger">*</span>
+                                </label>
+
+                                <input
+                                    type="text"
+                                    className="form-control"
+                                    placeholder="Enter subject name"
+                                    value={formData.name}
+                                    onChange={(e) =>
+                                        setFormData({
+                                        ...formData,
+                                        name: e.target.value,
+                                        })
+                                    }
+                                />
+                            </div>
+
+                            <div className="mb-3">
+                                <label className="form-label">
+                                    Subject Code <span className="text-danger">*</span>
+                                </label>
+
+                                <input
+                                    type="text"
+                                    className="form-control"
+                                    placeholder="Enter subject code (e.g. MATH)"
+                                    value={formData.code}
+                                    onChange={(e) =>
+                                    setFormData({
+                                        ...formData,
+                                        code: e.target.value.toUpperCase(),
+                                    })
+                                  }
+                                />
+                            </div>
+
+                            <div className="mb-3">
+                                <label className="form-label">
+                                    Description
+                                </label>
+
+                                <textarea
+                                    className="form-control"
+                                    rows="3"
+                                    placeholder="Enter subject description (optional)"
+                                    maxLength={500}
+                                    value={formData.description}
+                                    onChange={(e) =>
+                                    setFormData({
+                                        ...formData,
+                                        description: e.target.value,
+                                    })
+                                    }
+                                />
+
+                                <small className="text-muted">
+                                    Maximum 500 characters.
+                                </small>
+                            </div>
+
+                            <div className="d-flex gap-2">
+                                <button
+                                    type="button"
+                                    className="btn btn-primary"
+                                    onClick={editingSubject ? handleUpdateSubject : handleSaveSubject}
+                                >
+                                    <i className="bi bi-save me-2"></i>
+                                    Save Subject
+                                </button>
+
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary"
+                                    onClick={() => setShowForm(false)}
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+
                         </div>
                     </div>
                 )}
@@ -148,39 +343,66 @@ function SubjectManagement() {
                                     <th>Description</th>
                                     <th>Status</th>
                                     <th>Created On</th>
+                                    <th>Actions</th>
                                     </tr>
                                 </thead>
 
                                 <tbody>
                                     {subjects.length === 0 ? (
                                     <tr>
-                                        <td colSpan="6" className="text-center py-4 text-muted">
+                                        <td colSpan="7" className="text-center py-4 text-muted">
                                         No subjects found.
                                         </td>
                                     </tr>
                                     ) : (
                                         subjects.map((subject, index) => (
                                             <tr key={subject._id}>
-                                            <td>{index + 1}</td>
-                                            <td className="fw-semibold">{subject.name}</td>
-                                            <td>{subject.code}</td>
-                                            <td>{subject.description || "-"}</td>
-                                            <td>
-                                                <span
-                                                className={`badge ${
-                                                    subject.status === "Active"
-                                                    ? "bg-success"
-                                                    : "bg-secondary"
-                                                }`}
-                                                >
-                                                {subject.status}
-                                                </span>
-                                            </td>
-                                            <td>
-                                                {subject.createdAt
-                                                ? new Date(subject.createdAt).toLocaleDateString()
-                                                : "-"}
-                                            </td>
+                                                <td>{index + 1}</td>
+                                                <td className="fw-semibold">{subject.name}</td>
+                                                <td>{subject.code}</td>
+                                                <td>{subject.description || "-"}</td>
+                                                <td>
+                                                    <span
+                                                    className={`badge ${
+                                                        subject.status === "Active"
+                                                        ? "bg-success"
+                                                        : "bg-secondary"
+                                                    }`}
+                                                    >
+                                                    {subject.status}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    {subject.createdAt
+                                                    ? new Date(subject.createdAt).toLocaleDateString()
+                                                    : "-"}
+                                                </td>
+                                                <td>
+                                                    {canManage && (
+                                                        <>
+                                                            <button
+                                                                type="button"
+                                                                className="btn btn-sm btn-outline-primary"
+                                                                onClick={() => handleEditSubject(subject)}
+                                                            >
+                                                                <i className="bi bi-pencil-square me-1"></i>
+                                                                Edit
+                                                            </button>
+
+                                                            <button
+                                                                type="button"
+                                                                className={`btn btn-sm ms-2 ${
+                                                                    subject.status === "Active"
+                                                                        ? "btn-outline-danger"
+                                                                        : "btn-outline-success"
+                                                                }`}
+                                                                onClick={() => handleToggleStatus(subject)}
+                                                            >
+                                                                {subject.status === "Active" ? "Deactivate" : "Activate"}
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                </td>
                                             </tr>
                                         ))
                                     )}

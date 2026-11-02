@@ -611,6 +611,7 @@ export default function AuthGate() {
           <SubjectManagement
             user={user}
             onBack={() => openModule("students")}
+            canManage={canManageSubjects}
           />
         )}
 
