@@ -6,6 +6,7 @@ import TeacherAssignment from "../models/TeacherAssignment.js";
 import User from "../models/User.js";
 import Section from "../models/Section.js";
 import AcademicYear from "../models/AcademicYear.js";
+import Subject from "../models/Subject.js";
 
 import {
   requireAuth,
@@ -24,22 +25,24 @@ router.post(
   requireRole(...managers),
   async (req, res, next) => {
     try {
-      const { teacherId, sectionId, academicYearId } = req.body;
+      const { teacherId, subjectId, sectionId, academicYearId } = req.body;
 
       if (
         !mongoose.isValidObjectId(teacherId) ||
+        !mongoose.isValidObjectId(subjectId) ||
         !mongoose.isValidObjectId(sectionId) ||
         !mongoose.isValidObjectId(academicYearId)
       ) {
         return res.status(400).json({
           success: false,
           message:
-            "Valid teacherId, sectionId, and academicYearId are required.",
+            "Valid teacherId, subjectId, sectionId, and academicYearId are required.",
         });
       }
 
-      const [teacher, section, academicYear] = await Promise.all([
+      const [teacher, subject, section, academicYear] = await Promise.all([
         User.findById(teacherId).select("role status name email"),
+        Subject.findById(subjectId).select("status name"),
         Section.findById(sectionId).select("classId status name"),
         AcademicYear.findById(academicYearId).select("status name"),
       ]);
@@ -48,6 +51,13 @@ router.post(
         return res.status(400).json({
           success: false,
           message: "The selected user is not an active Teacher.",
+        });
+      }
+
+      if (!subject || subject.status !== "Active") {
+        return res.status(400).json({
+          success: false,
+          message: "The selected subject is not active.",
         });
       }
 
@@ -67,6 +77,7 @@ router.post(
 
       const assignment = await TeacherAssignment.create({
         teacherId,
+        subjectId,
         sectionId,
         academicYearId,
         status: "Active",
@@ -76,6 +87,7 @@ router.post(
         assignment._id
       )
         .populate("teacherId", "name email role")
+        .populate("subjectId", "name status")
         .populate("sectionId", "name classId status")
         .populate("academicYearId", "name status")
         .lean();
@@ -99,13 +111,129 @@ router.post(
   }
 );
 
-// List assignments. Optional filters: teacherId, sectionId, academicYearId, status.
-router.get(
-  "/",
+router.put(
+  "/:id",
   requireRole(...managers),
   async (req, res, next) => {
     try {
+      const { id } = req.params;
+      const { teacherId, subjectId, sectionId, academicYearId } = req.body;
+
+      if (!mongoose.isValidObjectId(id)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid teacher assignment ID.",
+        });
+      }
+
+      if (
+        !mongoose.isValidObjectId(teacherId) ||
+        !mongoose.isValidObjectId(subjectId) ||
+        !mongoose.isValidObjectId(sectionId) ||
+        !mongoose.isValidObjectId(academicYearId)
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Valid teacherId, subjectId, sectionId, and academicYearId are required.",
+        });
+      }
+
+      const existingAssignment = await TeacherAssignment.findById(id);
+
+      if (!existingAssignment) {
+        return res.status(404).json({
+          success: false,
+          message: "Teacher assignment not found.",
+        });
+      }
+
+      const [teacher, subject, section, academicYear] = await Promise.all([
+        User.findById(teacherId).select("role status name email"),
+        Subject.findById(subjectId).select("status name"),
+        Section.findById(sectionId).select("classId status name"),
+        AcademicYear.findById(academicYearId).select("status name"),
+      ]);
+
+      if (!teacher || teacher.role !== "Teacher" || teacher.status !== "Active") {
+        return res.status(400).json({
+          success: false,
+          message: "The selected user is not an active Teacher.",
+        });
+      }
+
+      if (!subject || subject.status !== "Active") {
+        return res.status(400).json({
+          success: false,
+          message: "The selected subject is not active.",
+        });
+      }
+
+      if (!section || section.status !== "Active") {
+        return res.status(400).json({
+          success: false,
+          message: "The selected section is not active.",
+        });
+      }
+
+      if (!academicYear || academicYear.status !== "Active") {
+        return res.status(400).json({
+          success: false,
+          message: "The selected academic year is not active.",
+        });
+      }
+
+      existingAssignment.teacherId = teacherId;
+      existingAssignment.subjectId = subjectId;
+      existingAssignment.sectionId = sectionId;
+      existingAssignment.academicYearId = academicYearId;
+
+      await existingAssignment.save();
+
+      const updatedAssignment = await TeacherAssignment.findById(id)
+        .populate("teacherId", "name email role")
+        .populate("subjectId", "name status")
+        .populate({
+          path: "sectionId",
+          select: "name classId status",
+          populate: {
+            path: "classId",
+            select: "name gradeNumber",
+          },
+        })
+        .populate("academicYearId", "name status")
+        .lean();
+
+      return res.status(200).json({
+        success: true,
+        message: "Teacher assignment updated successfully.",
+        data: updatedAssignment,
+      });
+    } catch (error) {
+      if (error?.code === 11000) {
+        return res.status(409).json({
+          success: false,
+          message:
+            "An active assignment already exists for this subject, section, and academic year.",
+        });
+      }
+
+      next(error);
+    }
+  }
+);
+
+// List assignments. Optional filters: teacherId, sectionId, academicYearId, status.
+router.get(
+  "/",
+  requireRole(...managers, "Teacher"),
+  async (req, res, next) => {
+    try {
       const filter = {};
+
+      if (req.user.role === "Teacher") {
+        filter.teacherId = req.user.id;
+      }
 
       for (const field of ["teacherId", "sectionId", "academicYearId"]) {
         if (req.query[field]) {
@@ -116,7 +244,9 @@ router.get(
             });
           }
 
-          filter[field] = req.query[field];
+          if (field !== "teacherId" || req.user.role !== "Teacher") {
+            filter[field] = req.query[field];
+          }
         }
       }
 
@@ -133,7 +263,15 @@ router.get(
 
       const assignments = await TeacherAssignment.find(filter)
         .populate("teacherId", "name email role status")
-        .populate("sectionId", "name classId status")
+        .populate("subjectId", "name status")
+        .populate({
+          path: "sectionId",
+          select: "name classId status",
+          populate: {
+            path: "classId",
+            select: "name gradeNumber",
+          },
+        })
         .populate("academicYearId", "name status")
         .sort({ createdAt: -1 })
         .lean();
@@ -178,6 +316,7 @@ router.patch(
         { new: true, runValidators: true }
       )
         .populate("teacherId", "name email role")
+        .populate("subjectId", "name status")
         .populate("sectionId", "name classId status")
         .populate("academicYearId", "name status")
         .lean();
@@ -199,7 +338,7 @@ router.patch(
         return res.status(409).json({
           success: false,
           message:
-            "An active assignment already exists for this Teacher, section, and academic year.",
+            "An active assignment already exists for this subject, section, and academic year.",
         });
       }
 

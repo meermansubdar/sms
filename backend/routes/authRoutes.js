@@ -15,9 +15,22 @@ const loginLimiter = rateLimit({
   limit: 10,
   standardHeaders: true,
   legacyHeaders: false,
-  message: {
-    success: false,
-    message: "Too many login attempts. Try again later."
+
+  handler: (req, res) => {
+    const resetTime = req.rateLimit.resetTime;
+
+    const retryAfterSeconds = resetTime
+      ? Math.max(
+          1,
+          Math.ceil((resetTime.getTime() - Date.now()) / 1000)
+        )
+      : 15 * 60;
+
+    res.status(429).json({
+      success: false,
+      message: "Too many login attempts. Try again later.",
+      retryAfterSeconds
+    });
   }
 });
 

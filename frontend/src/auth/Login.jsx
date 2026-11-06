@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import api from "../services/api";
 
 export default function Login({ onLogin }) {
@@ -7,6 +7,26 @@ export default function Login({ onLogin }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+
+  const minutes = Math.floor(countdown / 60);
+  const seconds = countdown % 60;
+
+  const formattedCountdown = `${String(minutes).padStart(2, "0")}:${String(
+    seconds
+  ).padStart(2, "0")}`;
+
+  useEffect(() => {
+    if (countdown <= 0) {
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setCountdown((previous) => Math.max(0, previous - 1));
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [countdown]);
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -24,10 +44,17 @@ export default function Login({ onLogin }) {
       sessionStorage.setItem("school_access_token", token);
       onLogin(user);
     } catch (err) {
-      setError(
-        err.response?.data?.message ||
-          "Unable to sign in. Please try again."
-      );
+      const retryAfter = err.response?.data?.retryAfterSeconds;
+
+      if (err.response?.status === 429 && retryAfter) {
+        setCountdown(retryAfter);
+        setError("Too many login attempts. Please wait.");
+      } else {
+        setError(
+          err.response?.data?.message ||
+            "Unable to sign in. Please try again."
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -50,6 +77,14 @@ export default function Login({ onLogin }) {
               {error && (
                 <div className="alert alert-danger" role="alert">
                   {error}
+
+                  {countdown > 0 && (
+                    <div className="mt-2">
+                      <strong>
+                        Please try again in: {formattedCountdown}
+                      </strong>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -91,9 +126,13 @@ export default function Login({ onLogin }) {
                 <button
                   type="submit"
                   className="btn btn-primary w-100"
-                  disabled={loading}
+                  disabled={loading || countdown > 0}
                 >
-                  {loading ? "Signing in..." : "Sign in"}
+                  {loading
+                    ? "Signing in..."
+                    : countdown > 0
+                      ? `Try again in ${formattedCountdown}`
+                      : "Sign in"}
                 </button>
               </form>
             </div>

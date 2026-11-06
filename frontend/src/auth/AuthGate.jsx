@@ -16,6 +16,7 @@ import FeeAssignmentManagement from "../FeeAssignmentManagement";
 import FeePaymentManagement from "../FeePaymentManagement";
 import FeeCollectionDashboard from "../FeeCollectionDashboard";
 import SubjectManagement from "../SubjectManagement";
+import TeacherAssignmentManagement from "../TeacherAssignmentManagement";
 
 const STUDENT_MODULE_ROLES = [
   "Administrator",
@@ -133,6 +134,17 @@ const SUBJECT_VIEW_ROLES = [
 ];
 
 const SUBJECT_MANAGE_ROLES = [
+  "Administrator",
+  "Principal",
+];
+
+const TEACHER_ASSIGNMENT_VIEW_ROLES = [
+  "Administrator",
+  "Principal",
+  "Teacher",
+];
+
+const TEACHER_ASSIGNMENT_MANAGE_ROLES = [
   "Administrator",
   "Principal",
 ];
@@ -288,6 +300,12 @@ export default function AuthGate() {
   const canManageSubjects =
   SUBJECT_MANAGE_ROLES.includes(user.role);
 
+  const canViewTeacherAssignments =
+  TEACHER_ASSIGNMENT_VIEW_ROLES.includes(user.role);
+
+  const canManageTeacherAssignments =
+  TEACHER_ASSIGNMENT_MANAGE_ROLES.includes(user.role);
+
   const canViewAnyModule =
     canViewStudents ||
     canViewAcademicYears ||
@@ -297,7 +315,8 @@ export default function AuthGate() {
     canViewAttendance ||
     canViewFeeStructures ||
     canViewUserManagement ||
-    canViewFeeDashboard;
+    canViewFeeDashboard ||
+    canViewTeacherAssignments;
 
   return (
     <>
@@ -528,6 +547,23 @@ export default function AuthGate() {
                   Subject Management
                 </button>
               )}
+
+              {canViewTeacherAssignments && (
+                <button
+                  type="button"
+                  className={`btn btn-sm ${
+                    activeModule === "teacherAssignments"
+                      ? "btn-primary"
+                      : "btn-outline-primary"
+                  }`}
+                  onClick={() => openModule("teacherAssignments")}
+                  aria-current={
+                    activeModule === "teacherAssignments" ? "page" : undefined
+                  }
+                >
+                  Teacher Assignment Management
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -612,6 +648,15 @@ export default function AuthGate() {
             user={user}
             onBack={() => openModule("students")}
             canManage={canManageSubjects}
+          />
+        )}
+
+        {activeModule === "teacherAssignments" &&
+        canViewTeacherAssignments && (
+          <TeacherAssignmentManagement
+            user={user}
+            onBack={() => openModule("students")}
+            canManage={canManageTeacherAssignments}
           />
         )}
 
