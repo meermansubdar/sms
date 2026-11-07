@@ -147,8 +147,10 @@ export default function PeriodConfigurationManagement({ user, onBack }) {
         (year) => year._id === selectedAcademicYearId
     );
 
-    const canManageSelectedYear =
-        canManage && selectedAcademicYear?.status === "Active";
+  const canManageSelectedYear =
+    canManage &&
+    selectedAcademicYear?.status === "Active" &&
+    (!configurations[0] || configurations[0].status === "Active");
 
 
   const [loading, setLoading] = useState(false);
@@ -312,6 +314,8 @@ export default function PeriodConfigurationManagement({ user, onBack }) {
   }, []);
 
     const saveConfiguration = async () => {
+        setError("");
+        setSuccess("");
     if (!selectedAcademicYearId) {
       setError("Please select an Academic Year.");
       return;
@@ -447,11 +451,7 @@ export default function PeriodConfigurationManagement({ user, onBack }) {
 
       <div className="card shadow-sm">
         <div className="card-body">
-          {error && (
-            <div className="alert alert-danger">
-              {error}
-            </div>
-          )}
+
 
           <div className="row mb-3">
             <div className="col-md-6">
@@ -502,89 +502,95 @@ export default function PeriodConfigurationManagement({ user, onBack }) {
                         ))}
                     </div>
 
-                              <hr />
+                    <hr />
 
-                                <PeriodSchedule
-                                    title="Monday to Friday Period Configuration"
-                                    scheduleType="weekday"
-                                    periods={weekdayPeriods}
-                                    canManage={canManageSelectedYear}
-                                    onAdd={addPeriod}
-                                    onUpdate={updatePeriod}
-                                    onRemove={removePeriod}
-                                />
+                    <PeriodSchedule
+                        title="Monday to Friday Period Configuration"
+                        scheduleType="weekday"
+                        periods={weekdayPeriods}
+                        canManage={canManageSelectedYear}
+                        onAdd={addPeriod}
+                        onUpdate={updatePeriod}
+                        onRemove={removePeriod}
+                    />
 
-                                <PeriodSchedule
-                                    title="Saturday Period Configuration"
-                                    scheduleType="saturday"
-                                    periods={saturdayPeriods}
-                                    canManage={canManageSelectedYear}
-                                    onAdd={addPeriod}
-                                    onUpdate={updatePeriod}
-                                    onRemove={removePeriod}
-                                />
+                    <PeriodSchedule
+                        title="Saturday Period Configuration"
+                        scheduleType="saturday"
+                        periods={saturdayPeriods}
+                        canManage={canManageSelectedYear}
+                        onAdd={addPeriod}
+                        onUpdate={updatePeriod}
+                        onRemove={removePeriod}
+                    />
 
-                                {configurations.length > 0 && (
-                                    <div className="d-flex flex-wrap justify-content-between align-items-center mb-3">
-                                        <div>
-                                            <strong>Configuration Status: </strong>
+                    {configurations.length > 0 && (
+                        <div className="d-flex flex-wrap justify-content-between align-items-center mb-3">
+                            <div>
+                                <strong>Configuration Status: </strong>
 
-                                            <span
-                                            className={`badge ${
-                                                configurations[0].status === "Active"
-                                                ? "bg-success"
-                                                : "bg-secondary"
-                                            }`}
-                                            >
-                                            {configurations[0].status}
-                                            </span>
-                                        </div>
+                                <span
+                                className={`badge ${
+                                    configurations[0].status === "Active"
+                                    ? "bg-success"
+                                    : "bg-secondary"
+                                }`}
+                                >
+                                {configurations[0].status}
+                                </span>
+                            </div>
 
-                                    {canManageSelectedYear && (
-                                        <button
-                                        type="button"
-                                        className={`btn btn-sm ${
-                                            configurations[0].status === "Active"
-                                            ? "btn-outline-danger"
-                                            : "btn-outline-success"
-                                        }`}
-                                        onClick={handleStatusChange}
-                                        disabled={saving || loading}
-                                        >
-                                        {configurations[0].status === "Active"
-                                            ? "Deactivate"
-                                            : "Activate"}
-                                        </button>
-                                    )}
-                                    </div>
-                                )}
+                        {canManage && selectedAcademicYear?.status === "Active" && configurations.length > 0 && (
+                            <button
+                            type="button"
+                            className={`btn btn-sm ${
+                                configurations[0].status === "Active"
+                                ? "btn-outline-danger"
+                                : "btn-outline-success"
+                            }`}
+                            onClick={handleStatusChange}
+                            disabled={saving || loading}
+                            >
+                            {configurations[0].status === "Active"
+                                ? "Deactivate"
+                                : "Activate"}
+                            </button>
+                        )}
+                        </div>
+                    )}
 
-                                {success && (
-                                    <div className="alert alert-success">
-                                    {success}
-                                    </div>
-                                )}
+                    {success && (
+                        <div className="alert alert-success">
+                        {success}
+                        </div>
+                    )}
 
-                                {loading && (
-                                    <div className="text-center my-3">
-                                    <div className="spinner-border text-primary" role="status">
-                                        <span className="visually-hidden">Loading...</span>
-                                    </div>
-                                    </div>
-                                )}
+                    {error && (
+                        <div className="alert alert-danger">
+                        {error}
+                        </div>
+                    )}
 
-                                {canManageSelectedYear && (
-                                    <div className="d-flex justify-content-end">
-                                    <button
-                                        type="button"
-                                        className="btn btn-primary"
-                                        onClick={saveConfiguration}
-                                        disabled={saving || loading || !selectedAcademicYearId}
-                                    >
-                                        {saving ? "Saving..." : "Save Configuration"}
-                                    </button>
-                                    </div>
-                                )}
+                    {loading && (
+                        <div className="text-center my-3">
+                        <div className="spinner-border text-primary" role="status">
+                            <span className="visually-hidden">Loading...</span>
+                        </div>
+                        </div>
+                    )}
+
+                    {canManageSelectedYear && (
+                        <div className="d-flex justify-content-end">
+                        <button
+                            type="button"
+                            className="btn btn-primary"
+                            onClick={saveConfiguration}
+                            disabled={saving || loading || !selectedAcademicYearId}
+                        >
+                            {saving ? "Saving..." : "Save Configuration"}
+                        </button>
+                        </div>
+                    )}
 
           {academicYears.length === 0 && !error && (
             <div className="alert alert-info mb-0">
