@@ -17,6 +17,7 @@ import FeePaymentManagement from "../FeePaymentManagement";
 import FeeCollectionDashboard from "../FeeCollectionDashboard";
 import SubjectManagement from "../SubjectManagement";
 import TeacherAssignmentManagement from "../TeacherAssignmentManagement";
+import PeriodConfigurationManagement from "../PeriodConfigurationManagement";
 
 const STUDENT_MODULE_ROLES = [
   "Administrator",
@@ -145,6 +146,18 @@ const TEACHER_ASSIGNMENT_VIEW_ROLES = [
 ];
 
 const TEACHER_ASSIGNMENT_MANAGE_ROLES = [
+  "Administrator",
+  "Principal",
+];
+
+const PERIOD_CONFIGURATION_VIEW_ROLES = [
+  "Administrator",
+  "Principal",
+  "Teacher",
+  "Accountant",
+];
+
+const PERIOD_CONFIGURATION_MANAGE_ROLES = [
   "Administrator",
   "Principal",
 ];
@@ -306,6 +319,12 @@ export default function AuthGate() {
   const canManageTeacherAssignments =
   TEACHER_ASSIGNMENT_MANAGE_ROLES.includes(user.role);
 
+  const canViewPeriodConfigurations =
+  PERIOD_CONFIGURATION_VIEW_ROLES.includes(user.role);
+
+  const canManagePeriodConfigurations =
+  PERIOD_CONFIGURATION_MANAGE_ROLES.includes(user.role);
+
   const canViewAnyModule =
     canViewStudents ||
     canViewAcademicYears ||
@@ -316,7 +335,8 @@ export default function AuthGate() {
     canViewFeeStructures ||
     canViewUserManagement ||
     canViewFeeDashboard ||
-    canViewTeacherAssignments;
+    canViewTeacherAssignments ||
+    canViewPeriodConfigurations;
 
   return (
     <>
@@ -564,6 +584,19 @@ export default function AuthGate() {
                   Teacher Assignment Management
                 </button>
               )}
+
+              {canViewPeriodConfigurations && (
+                <button
+                  className={`btn ${
+                    activeModule === "periodConfigurations"
+                      ? "btn-primary"
+                      : "btn-outline-primary"
+                  }`}
+                  onClick={() => openModule("periodConfigurations")}
+                >
+                  Period Configuration
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -658,6 +691,14 @@ export default function AuthGate() {
             onBack={() => openModule("students")}
             canManage={canManageTeacherAssignments}
           />
+        )}
+
+        {activeModule === "periodConfigurations" &&
+          canViewPeriodConfigurations && (
+            <PeriodConfigurationManagement
+              user={user}
+              onBack={() => openModule("students")}
+            />
         )}
 
       {!canViewAnyModule && (

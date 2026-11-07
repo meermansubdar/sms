@@ -138,9 +138,18 @@ function PeriodSchedule({
 export default function PeriodConfigurationManagement({ user, onBack }) {
   const canManage = ["Administrator", "Principal"].includes(user?.role);
 
+
   const [academicYears, setAcademicYears] = useState([]);
   const [configurations, setConfigurations] = useState([]);
   const [selectedAcademicYearId, setSelectedAcademicYearId] = useState("");
+
+      const selectedAcademicYear = academicYears.find(
+        (year) => year._id === selectedAcademicYearId
+    );
+
+    const canManageSelectedYear =
+        canManage && selectedAcademicYear?.status === "Active";
+
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -230,9 +239,11 @@ export default function PeriodConfigurationManagement({ user, onBack }) {
 
       const response = await api.get("/academic-years");
 
-      const years = Array.isArray(response.data)
-        ? response.data
-        : response.data.academicYears || [];
+        const years = Array.isArray(response.data)
+            ? response.data
+            : Array.isArray(response.data.data)
+                ? response.data.data
+                : response.data.academicYears || [];
 
       setAcademicYears(years);
 
@@ -263,11 +274,33 @@ export default function PeriodConfigurationManagement({ user, onBack }) {
         }
       });
 
-      const records = Array.isArray(response.data)
+        const records = Array.isArray(response.data)
         ? response.data
-        : response.data.configurations || [];
+        : Array.isArray(response.data.data)
+            ? response.data.data
+            : response.data.configurations || [];
 
       setConfigurations(records);
+
+            if (records.length > 0) {
+                const configuration = records[0];
+
+                setWorkingDays(configuration.workingDays || []);
+                setWeekdayPeriods(configuration.weekdayPeriods || []);
+                setSaturdayPeriods(configuration.saturdayPeriods || []);
+            } else {
+                setWorkingDays([
+                "Monday",
+                "Tuesday",
+                "Wednesday",
+                "Thursday",
+                "Friday",
+                "Saturday"
+                ]);
+
+                setWeekdayPeriods([]);
+                setSaturdayPeriods([]);
+            }
     } catch (err) {
       setError(
         err.response?.data?.message ||
@@ -277,6 +310,113 @@ export default function PeriodConfigurationManagement({ user, onBack }) {
       setLoading(false);
     }
   }, []);
+
+    const saveConfiguration = async () => {
+    if (!selectedAcademicYearId) {
+      setError("Please select an Academic Year.");
+      return;
+    }
+
+    if (workingDays.length === 0) {
+      setError("Please select at least one working day.");
+      return;
+    }
+
+    if (weekdayPeriods.length === 0 || saturdayPeriods.length === 0) {
+      setError("Please configure at least one weekday and Saturday period.");
+      return;
+    }
+
+    const cleanPeriods = (periods) =>
+        periods.map(({ _id, ...period }) => period);
+
+    const configurationData = {
+        academicYearId: selectedAcademicYearId,
+        workingDays,
+        weekdayPeriods: cleanPeriods(weekdayPeriods),
+        saturdayPeriods: cleanPeriods(saturdayPeriods)
+    };
+
+    try {
+      setSaving(true);
+      setError("");
+      setSuccess("");
+
+      if (configurations.length > 0) {
+        await api.patch(
+          `/period-configurations/${configurations[0]._id}`,
+            {
+                workingDays,
+                weekdayPeriods: cleanPeriods(weekdayPeriods),
+                saturdayPeriods: cleanPeriods(saturdayPeriods)
+            }
+        );
+      } else {
+        await api.post(
+          "/period-configurations",
+          configurationData
+        );
+      }
+
+      setSuccess("Period Configuration saved successfully.");
+
+      await loadConfigurations(selectedAcademicYearId);
+    } catch (err) {
+        const responseData = err.response?.data;
+
+        if (Array.isArray(responseData?.errors) && responseData.errors.length > 0) {
+            setError(
+            responseData.errors
+                .map((item) => item.message)
+                .join(" ")
+            );
+        } else {
+            setError(
+            responseData?.message ||
+            "Unable to save Period Configuration."
+            );
+        }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+    const handleStatusChange = async () => {
+    if (configurations.length === 0) {
+      return;
+    }
+
+    const configuration = configurations[0];
+
+    const newStatus =
+      configuration.status === "Active" ? "Inactive" : "Active";
+
+    try {
+      setSaving(true);
+      setError("");
+      setSuccess("");
+
+      await api.patch(
+        `/period-configurations/${configuration._id}`,
+        { status: newStatus }
+      );
+
+      setSuccess(`Period Configuration ${newStatus} successfully.`);
+
+      await loadConfigurations(selectedAcademicYearId);
+    } catch (err) {
+      setError(
+        err.response?.data?.message ||
+        "Unable to change Period Configuration status."
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  useEffect(() => {
+    loadConfigurations(selectedAcademicYearId);
+  }, [selectedAcademicYearId, loadConfigurations]);
 
   useEffect(() => {
     loadAcademicYears();
@@ -368,7 +508,7 @@ export default function PeriodConfigurationManagement({ user, onBack }) {
                                     title="Monday to Friday Period Configuration"
                                     scheduleType="weekday"
                                     periods={weekdayPeriods}
-                                    canManage={canManage}
+                                    canManage={canManageSelectedYear}
                                     onAdd={addPeriod}
                                     onUpdate={updatePeriod}
                                     onRemove={removePeriod}
@@ -378,11 +518,73 @@ export default function PeriodConfigurationManagement({ user, onBack }) {
                                     title="Saturday Period Configuration"
                                     scheduleType="saturday"
                                     periods={saturdayPeriods}
-                                    canManage={canManage}
+                                    canManage={canManageSelectedYear}
                                     onAdd={addPeriod}
                                     onUpdate={updatePeriod}
                                     onRemove={removePeriod}
                                 />
+
+                                {configurations.length > 0 && (
+                                    <div className="d-flex flex-wrap justify-content-between align-items-center mb-3">
+                                        <div>
+                                            <strong>Configuration Status: </strong>
+
+                                            <span
+                                            className={`badge ${
+                                                configurations[0].status === "Active"
+                                                ? "bg-success"
+                                                : "bg-secondary"
+                                            }`}
+                                            >
+                                            {configurations[0].status}
+                                            </span>
+                                        </div>
+
+                                    {canManageSelectedYear && (
+                                        <button
+                                        type="button"
+                                        className={`btn btn-sm ${
+                                            configurations[0].status === "Active"
+                                            ? "btn-outline-danger"
+                                            : "btn-outline-success"
+                                        }`}
+                                        onClick={handleStatusChange}
+                                        disabled={saving || loading}
+                                        >
+                                        {configurations[0].status === "Active"
+                                            ? "Deactivate"
+                                            : "Activate"}
+                                        </button>
+                                    )}
+                                    </div>
+                                )}
+
+                                {success && (
+                                    <div className="alert alert-success">
+                                    {success}
+                                    </div>
+                                )}
+
+                                {loading && (
+                                    <div className="text-center my-3">
+                                    <div className="spinner-border text-primary" role="status">
+                                        <span className="visually-hidden">Loading...</span>
+                                    </div>
+                                    </div>
+                                )}
+
+                                {canManageSelectedYear && (
+                                    <div className="d-flex justify-content-end">
+                                    <button
+                                        type="button"
+                                        className="btn btn-primary"
+                                        onClick={saveConfiguration}
+                                        disabled={saving || loading || !selectedAcademicYearId}
+                                    >
+                                        {saving ? "Saving..." : "Save Configuration"}
+                                    </button>
+                                    </div>
+                                )}
 
           {academicYears.length === 0 && !error && (
             <div className="alert alert-info mb-0">
