@@ -144,3 +144,108 @@ test("Timetable should define a unique section-day-period index", () => {
 
   assert.ok(uniqueIndex);
 });
+
+
+test("Timetable should reject missing Day", async () => {
+  const timetable = createValidTimetable();
+  timetable.day = undefined;
+
+  const error = await timetable.validate().catch((err) => err);
+
+  assert.ok(error);
+  assert.ok(error.errors.day);
+});
+
+test("Timetable should reject invalid Academic Year ID format", async () => {
+  const timetable = createValidTimetable();
+  timetable.academicYearId = "invalid-id";
+
+  const error = await timetable.validate().catch((err) => err);
+
+  assert.ok(error);
+  assert.ok(error.errors.academicYearId);
+});
+
+test("Timetable should reject invalid Section ID format", async () => {
+  const timetable = createValidTimetable();
+  timetable.sectionId = "invalid-id";
+
+  const error = await timetable.validate().catch((err) => err);
+
+  assert.ok(error);
+  assert.ok(error.errors.sectionId);
+});
+
+test("Timetable should reject invalid Subject ID format", async () => {
+  const timetable = createValidTimetable();
+  timetable.subjectId = "invalid-id";
+
+  const error = await timetable.validate().catch((err) => err);
+
+  assert.ok(error);
+  assert.ok(error.errors.subjectId);
+});
+
+test("Timetable should reject invalid Teacher ID format", async () => {
+  const timetable = createValidTimetable();
+  timetable.teacherId = "invalid-id";
+
+  const error = await timetable.validate().catch((err) => err);
+
+  assert.ok(error);
+  assert.ok(error.errors.teacherId);
+});
+
+test("Timetable should accept an empty room number", async () => {
+  const timetable = createValidTimetable();
+  timetable.roomNumber = "";
+
+  const error = await timetable.validate().catch((err) => err);
+
+  assert.equal(error, undefined);
+  assert.equal(timetable.roomNumber, "");
+});
+
+test("Timetable should define a teacher timetable search index", () => {
+  const indexes = Timetable.schema.indexes();
+
+  const teacherIndex = indexes.find(
+    ([fields]) =>
+      fields.academicYearId === 1 &&
+      fields.teacherId === 1 &&
+      fields.day === 1 &&
+      fields.periodNumber === 1
+  );
+
+  assert.ok(teacherIndex);
+});
+
+test("Timetable should define a room timetable search index", () => {
+  const indexes = Timetable.schema.indexes();
+
+  const roomIndex = indexes.find(
+    ([fields]) =>
+      fields.academicYearId === 1 &&
+      fields.roomNumber === 1 &&
+      fields.day === 1 &&
+      fields.periodNumber === 1
+  );
+
+  assert.ok(roomIndex);
+});
+
+test("Timetable should not store a separate Class ID", async () => {
+  const timetable = new Timetable({
+    academicYearId: new mongoose.Types.ObjectId(),
+    sectionId: new mongoose.Types.ObjectId(),
+    classId: new mongoose.Types.ObjectId(),
+    day: "Monday",
+    periodNumber: 1,
+    subjectId: new mongoose.Types.ObjectId(),
+    teacherId: new mongoose.Types.ObjectId(),
+  });
+
+  assert.equal(timetable.classId, undefined);
+
+  await timetable.validate();
+});

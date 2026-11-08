@@ -153,25 +153,27 @@ function TeacherAssignmentManagement({ user, onBack, canManage }) {
             <div className="container-fluid">
             <h2 className="mb-4">Teacher Assignment Management</h2>
             {canManage && (
-        <div className="mb-3">
-            <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => {
-                setShowForm(false);
-                setEditingAssignmentId(null);
-                setFormData({
-                    teacherId: "",
-                    subjectId: "",
-                    academicYearId: "",
-                    sectionId: "",
-                });
-            }}
-            >
-            {showForm ? "Cancel" : "Assign Teacher"}
-            </button>
-        </div>
-        )}
+                <div className="mb-3">
+                    <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => {
+                        setShowForm((previous) => !previous);
+                        setEditingAssignmentId(null);
+                        setFormData({
+                            teacherId: "",
+                            subjectId: "",
+                            academicYearId: "",
+                            sectionId: "",
+                        });
+                        setError("");
+                        setSuccess("");
+                    }}
+                    >
+                    {showForm ? "Cancel" : "Assign Teacher"}
+                    </button>
+                </div>
+            )}
 
         {success && (
         <div className="alert alert-success">

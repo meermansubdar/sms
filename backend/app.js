@@ -22,6 +22,7 @@ import periodConfigurationRoutes from "./routes/periodConfigurationRoutes.js";
 import subjectRoutes from "./routes/subjectRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
+import timetableRoutes from "./routes/timetableRoutes.js";
 
 const app = express();
 
@@ -92,6 +93,7 @@ app.use("/api/fee-payments", feePaymentRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/teacher-assignments", teacherAssignmentRoutes);
 app.use("/api/period-configurations", periodConfigurationRoutes);
+app.use("/api/timetables", timetableRoutes);
 app.use("/api/subjects", subjectRoutes);
 app.use("/api/users", userRoutes);
 
