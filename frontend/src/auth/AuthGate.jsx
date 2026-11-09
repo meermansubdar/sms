@@ -19,6 +19,7 @@ import SubjectManagement from "../SubjectManagement";
 import TeacherAssignmentManagement from "../TeacherAssignmentManagement";
 import PeriodConfigurationManagement from "../PeriodConfigurationManagement";
 import TimetableManagement from "../TimetableManagement";
+import HomeworkManagement from "../HomeworkManagement";
 
 const STUDENT_MODULE_ROLES = [
   "Administrator",
@@ -173,6 +174,19 @@ const TIMETABLE_VIEW_ROLES = [
 const TIMETABLE_MANAGE_ROLES = [
   "Administrator",
   "Principal",
+];
+
+const HOMEWORK_VIEW_ROLES = [
+  "Administrator",
+  "Principal",
+  "Teacher",
+  "Student",
+];
+
+const HOMEWORK_MANAGE_ROLES = [
+  "Administrator",
+  "Principal",
+  "Teacher",
 ];
 
 export default function AuthGate() {
@@ -344,6 +358,12 @@ export default function AuthGate() {
   const canManageTimetable =
   TIMETABLE_MANAGE_ROLES.includes(user.role);
 
+  const canViewHomework =
+  HOMEWORK_VIEW_ROLES.includes(user.role);
+
+  const canManageHomework =
+  HOMEWORK_MANAGE_ROLES.includes(user.role);
+
   const canViewAnyModule =
     canViewStudents ||
     canViewAcademicYears ||
@@ -356,7 +376,8 @@ export default function AuthGate() {
     canViewFeeDashboard ||
     canViewTeacherAssignments ||
     canViewPeriodConfigurations ||
-    canViewTimetable;
+    canViewTimetable ||
+    canViewHomework;
 
   return (
     <>
@@ -487,6 +508,23 @@ export default function AuthGate() {
                 >
                     Attendance Management
                 </button>
+                )}
+
+                {canViewHomework && (
+                  <button
+                    type="button"
+                    className={`btn btn-sm ${
+                      activeModule === "homework"
+                        ? "btn-primary"
+                        : "btn-outline-primary"
+                    }`}
+                    onClick={() => openModule("homework")}
+                    aria-current={
+                      activeModule === "homework" ? "page" : undefined
+                    }
+                  >
+                    Homework Management
+                  </button>
                 )}
 
                 {canViewUserManagement && (
@@ -743,6 +781,14 @@ export default function AuthGate() {
             user={user}
             onBack={() => openModule("students")}
             canManage={canManageTimetable}
+          />
+        )}
+
+        {activeModule === "homework" && canViewHomework && (
+          <HomeworkManagement
+            user={user}
+            onBack={() => openModule("students")}
+            canManage={canManageHomework}
           />
         )}
 

@@ -16,6 +16,7 @@ const EMPTY_FORM = {
   email: "",
   password: "",
   role: "Teacher",
+  studentId: "",
 };
 
 const EMPTY_EDIT_FORM = {
@@ -23,10 +24,13 @@ const EMPTY_EDIT_FORM = {
   email: "",
   role: "Teacher",
   status: "Active",
+  studentId: "",
 };
 
 export default function UserManagement({ user, onBack }) {
   const [users, setUsers] = useState([]);
+  const [studentRecords, setStudentRecords] = useState([]);
+  const [loadingStudents, setLoadingStudents] = useState(false);
   const [role, setRole] = useState("");
   const [status, setStatus] = useState("");
   const [page, setPage] = useState(1);
@@ -81,6 +85,55 @@ export default function UserManagement({ user, onBack }) {
     loadUsers();
   }, [loadUsers]);
 
+  async function loadStudentRecords(
+    currentStudentId = "",
+    currentUserId = ""
+  ) {
+    setLoadingStudents(true);
+
+    try {
+      const [studentResponse, userResponse] = await Promise.all([
+        api.get("/students", {
+          params: {
+            status: "Active",
+            limit: 100,
+          },
+        }),
+        api.get("/users", {
+          params: {
+            role: "Student",
+            limit: 100,
+          },
+        }),
+      ]);
+
+      const linkedStudentIds = new Set(
+        (userResponse.data.data || [])
+          .filter(
+            (existingUser) =>
+              existingUser._id !== currentUserId &&
+              existingUser.studentId
+          )
+          .map((existingUser) => existingUser.studentId.toString())
+      );
+
+      const availableStudents = (studentResponse.data.data || []).filter(
+        (student) =>
+          !linkedStudentIds.has(student._id.toString()) ||
+          student._id.toString() === currentStudentId
+      );
+
+      setStudentRecords(availableStudents);
+    } catch (err) {
+      setError(
+        err.response?.data?.message ||
+          "Unable to load available Student records."
+      );
+    } finally {
+      setLoadingStudents(false);
+    }
+  }
+
   function changeRole(value) {
     setRole(value);
     setPage(1);
@@ -113,7 +166,16 @@ export default function UserManagement({ user, onBack }) {
 
   function handleFormChange(event) {
     const { name, value } = event.target;
-    setForm((current) => ({ ...current, [name]: value }));
+
+    setForm((current) => ({
+      ...current,
+      [name]: value,
+      ...(name === "role" && value !== "Student" ? { studentId: "" } : {}),
+    }));
+
+    if (name === "role" && value === "Student") {
+      loadStudentRecords();
+    }
   }
 
   async function handleCreateUser(event) {
@@ -144,6 +206,7 @@ export default function UserManagement({ user, onBack }) {
         email: form.email.trim(),
         password: form.password,
         role: form.role,
+        ...(form.role === "Student" ? { studentId: form.studentId } : {}),
       });
 
       setShowForm(false);
@@ -179,7 +242,12 @@ export default function UserManagement({ user, onBack }) {
       email: item.email || "",
       role: item.role || "Teacher",
       status: item.status || "Active",
+      studentId: item.studentId?.toString() || "",
     });
+
+    if (item.role === "Student") {
+      loadStudentRecords(item.studentId?.toString() || "", item._id);
+    }
   }
 
   function closeEditForm() {
@@ -190,7 +258,16 @@ export default function UserManagement({ user, onBack }) {
 
   function handleEditFormChange(event) {
     const { name, value } = event.target;
-    setEditForm((current) => ({ ...current, [name]: value }));
+
+    setEditForm((current) => ({
+      ...current,
+      [name]: value,
+      ...(name === "role" && value !== "Student" ? { studentId: "" } : {}),
+    }));
+
+    if (name === "role" && value === "Student") {
+      loadStudentRecords();
+    }
   }
 
   async function handleUpdateUser(event) {
@@ -224,6 +301,9 @@ export default function UserManagement({ user, onBack }) {
         email: editForm.email.trim(),
         role: editForm.role,
         status: editForm.status,
+        ...(editForm.role === "Student"
+          ? { studentId: editForm.studentId }
+          : {}),
       });
 
       setEditingUser(null);
@@ -381,6 +461,38 @@ export default function UserManagement({ user, onBack }) {
                     ))}
                   </select>
                 </div>
+
+                {form.role === "Student" && (
+                  <div className="col-md-6">
+                    <label htmlFor="newUserStudent" className="form-label">
+                      Link Student Record
+                    </label>
+                    <select
+                      id="newUserStudent"
+                      name="studentId"
+                      className="form-select"
+                      value={form.studentId}
+                      onChange={handleFormChange}
+                      required
+                      disabled={saving || loadingStudents}
+                    >
+                      <option value="">
+                        {loadingStudents
+                          ? "Loading Student records..."
+                          : "Select Student"}
+                      </option>
+                      {studentRecords.map((student) => (
+                        <option key={student._id} value={student._id}>
+                          {student.admissionNumber} - {student.firstName}{" "}
+                          {student.lastName}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="form-text">
+                      Select the Student profile belonging to this login account.
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="d-flex flex-wrap gap-2 mt-4">
@@ -476,6 +588,38 @@ export default function UserManagement({ user, onBack }) {
                     ))}
                   </select>
                 </div>
+
+                {editForm.role === "Student" && (
+                  <div className="col-md-6">
+                    <label htmlFor="editUserStudent" className="form-label">
+                      Link Student Record
+                    </label>
+                    <select
+                      id="editUserStudent"
+                      name="studentId"
+                      className="form-select"
+                      value={editForm.studentId}
+                      onChange={handleEditFormChange}
+                      required
+                      disabled={savingEdit || loadingStudents}
+                    >
+                      <option value="">
+                        {loadingStudents
+                          ? "Loading Student records..."
+                          : "Select Student"}
+                      </option>
+                      {studentRecords.map((student) => (
+                        <option key={student._id} value={student._id}>
+                          {student.admissionNumber} - {student.firstName}{" "}
+                          {student.lastName}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="form-text">
+                      Select the Student profile belonging to this login account.
+                    </div>
+                  </div>
+                )}
 
                 <div className="col-md-6">
                   <label htmlFor="editUserStatus" className="form-label">

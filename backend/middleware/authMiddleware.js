@@ -47,7 +47,7 @@ export async function requireAuth(req, res, next) {
     }
 
     const user = await User.findById(payload.sub).select(
-      "name email role status"
+      "name email role status studentId"
     );
 
     if (!user || user.status !== "Active") {
@@ -61,7 +61,10 @@ export async function requireAuth(req, res, next) {
       id: user._id.toString(),
       name: user.name,
       email: user.email,
-      role: user.role
+      role: user.role,
+      ...(user.role === "Student"
+        ? { studentId: user.studentId?.toString() }
+        : {})
     };
 
     next();

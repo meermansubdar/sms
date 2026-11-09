@@ -38,6 +38,12 @@ const userSchema = new mongoose.Schema(
       ]
     },
 
+    studentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Student",
+      default: undefined
+    },
+
     status: {
       type: String,
       enum: ["Active", "Inactive"],
@@ -46,6 +52,14 @@ const userSchema = new mongoose.Schema(
   },
   {
     timestamps: true
+  }
+);
+
+userSchema.index(
+  { studentId: 1 },
+  {
+    unique: true,
+    sparse: true
   }
 );
 

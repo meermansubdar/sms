@@ -2,6 +2,7 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import User from "../models/User.js";
+import Student from "../models/Student.js";
 import { requireAuth, requireRole } from "../middleware/authMiddleware.js";
 import {
   createUserSchema,
@@ -99,7 +100,7 @@ router.get("/", managementRoles, async (req, res, next) => {
 
     const [users, total] = await Promise.all([
       User.find(filter)
-        .select("name email role status createdAt updatedAt")
+        .select("name email role status studentId createdAt updatedAt")
         .sort({ name: 1 })
         .skip((page - 1) * limit)
         .limit(limit)
@@ -138,7 +139,7 @@ router.post("/", managementRoles, async (req, res, next) => {
       });
     }
 
-    const { name, email, password, role } = result.data;
+    const { name, email, password, role, studentId } = result.data;
 
     if (!canManageRole(req.user.role, role)) {
       return res.status(403).json({
@@ -146,6 +147,33 @@ router.post("/", managementRoles, async (req, res, next) => {
         message: "You are not permitted to create this role",
       });
     }
+
+    if (role === "Student") {
+      const student = await Student.findOne({
+        _id: studentId,
+        status: "Active",
+      }).select("_id");
+
+      if (!student) {
+        return res.status(400).json({
+          success: false,
+          message: "The selected Student does not exist or is inactive",
+        });
+      }
+
+      const existingStudentUser = await User.findOne({
+        studentId,
+      }).select("_id");
+
+      if (existingStudentUser) {
+        return res.status(409).json({
+          success: false,
+          message: "This Student is already linked to a user account",
+        });
+      }
+    }
+
+
 
     const existingUser = await User.findOne({ email }).select("_id");
 
@@ -163,6 +191,7 @@ router.post("/", managementRoles, async (req, res, next) => {
       email,
       passwordHash,
       role,
+      ...(role === "Student" ? { studentId } : {}),
     });
 
     return res.status(201).json({
@@ -221,7 +250,56 @@ router.patch("/:id", managementRoles, async (req, res, next) => {
       });
     }
 
-    const updates = result.data;
+  const updates = result.data;
+
+  const effectiveRole = updates.role ?? targetUser.role;
+
+  const effectiveStudentId =
+    updates.studentId ?? targetUser.studentId?.toString();
+
+  // A Student account must always have a linked Student record.
+  if (effectiveRole === "Student" && !effectiveStudentId) {
+    return res.status(400).json({
+      success: false,
+      message: "Student ID is required for Student accounts",
+    });
+  }
+
+  // Only Student accounts can have a studentId.
+  if (effectiveRole !== "Student" && updates.studentId !== undefined) {
+    return res.status(400).json({
+      success: false,
+      message: "Student ID can only be assigned to Student accounts",
+    });
+  }
+
+  // Validate the linked Student record.
+  if (effectiveRole === "Student") {
+    const student = await Student.findOne({
+      _id: effectiveStudentId,
+      status: "Active",
+    }).select("_id");
+
+    if (!student) {
+      return res.status(400).json({
+        success: false,
+        message: "The selected Student does not exist or is inactive",
+      });
+    }
+
+    // A Student record cannot be linked to another User account.
+    const existingStudentUser = await User.findOne({
+      studentId: effectiveStudentId,
+      _id: { $ne: targetUser._id },
+    }).select("_id");
+
+    if (existingStudentUser) {
+      return res.status(409).json({
+        success: false,
+        message: "This Student is already linked to another user account",
+      });
+    }
+  }
 
     if (
       updates.role !== undefined &&
@@ -258,6 +336,12 @@ router.patch("/:id", managementRoles, async (req, res, next) => {
     }
 
     Object.assign(targetUser, updates);
+
+    // Remove the Student link when changing to a non-Student role.
+    if (effectiveRole !== "Student") {
+      targetUser.studentId = undefined;
+    }
+
     await targetUser.save();
 
     return res.status(200).json({

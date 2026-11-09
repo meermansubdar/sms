@@ -10,6 +10,13 @@ const userRoles = [
   "Accountant",
 ];
 
+const studentIdSchema = z
+  .string()
+  .regex(
+    /^[0-9a-fA-F]{24}$/,
+    "Student ID must be a valid MongoDB ObjectId"
+  );
+
 export const createUserSchema = z
   .object({
     name: z
@@ -31,8 +38,27 @@ export const createUserSchema = z
       .max(128, "Password cannot exceed 128 characters"),
 
     role: z.enum(userRoles),
+
+    studentId: studentIdSchema.optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((data, ctx) => {
+    if (data.role === "Student" && !data.studentId) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["studentId"],
+        message: "Student ID is required for Student accounts.",
+      });
+    }
+
+    if (data.role !== "Student" && data.studentId) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["studentId"],
+        message: "Student ID can only be assigned to Student accounts.",
+      });
+    }
+  });
 
 export const updateUserSchema = z
   .object({
@@ -52,6 +78,8 @@ export const updateUserSchema = z
       .optional(),
 
     role: z.enum(userRoles).optional(),
+
+    studentId: studentIdSchema.optional(),
 
     status: z.enum(["Active", "Inactive"]).optional(),
   })
